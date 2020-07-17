@@ -59,20 +59,6 @@ class GetIndices:
         
         return y_label
 
-TrainProcessor = GetIndices(ftype = 'train')
-ValProcessor = GetIndices(ftype = 'val')
-TrainProcessor.Upload()
-ValProcessor.Upload()
-
-assert len(TrainProcessor.input_ids[0]) == max_seq_length
-assert len(TrainProcessor.input_mask[0]) == max_seq_length
-assert len(TrainProcessor.label_ids[0]) == max_seq_length
-
-print("Sequense len = ", len(TrainProcessor.input_ids[0]))
-print("Num of sequences = ", len(TrainProcessor.input_ids))
-print("Num of val sequences = ", len(ValProcessor.input_ids))
-print("files with input ids, masks, segment ids and label ids are loaded succesfully")
-
 class TsyaModelTrain:
     
     def __init__(self, epochs = epochs):
@@ -115,13 +101,13 @@ class TsyaModelTrain:
             
         # Combine the training inputs into a TensorDataset.
 
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:10000],
-                                torch.tensor(TrainProcessor.input_mask)[:10000],
-                                torch.tensor(TrainProcessor.label_ids)[:10000])
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:15000],
+                                torch.tensor(TrainProcessor.input_mask)[:15000],
+                                torch.tensor(TrainProcessor.label_ids)[:15000])
 
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:10000]),
-                                    torch.tensor(ValProcessor.input_mask[:10000]),
-                                    torch.tensor(ValProcessor.label_ids[:10000]))
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:20000]),
+                                    torch.tensor(ValProcessor.input_mask[:20000]),
+                                    torch.tensor(ValProcessor.label_ids[:20000]))
 
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
         validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
@@ -300,6 +286,20 @@ class TsyaModelTrain:
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time()-total_t0)))
         torch.save(self.model.state_dict(), "Chkpt.pth")
+
+TrainProcessor = GetIndices(ftype = 'train')
+ValProcessor = GetIndices(ftype = 'val')
+TrainProcessor.Upload()
+ValProcessor.Upload()
+
+assert len(TrainProcessor.input_ids[0]) == max_seq_length
+assert len(TrainProcessor.input_mask[0]) == max_seq_length
+assert len(TrainProcessor.label_ids[0]) == max_seq_length
+
+print("Sequense len = ", len(TrainProcessor.input_ids[0]))
+print("Num of sequences = ", len(TrainProcessor.input_ids))
+print("Num of val sequences = ", len(ValProcessor.input_ids))
+print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
 model = TsyaModelTrain()
 model.train()

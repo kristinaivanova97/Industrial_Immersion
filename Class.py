@@ -2,25 +2,26 @@ import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import re
-from transformers import BertTokenizer, BertModel, BertForTokenClassification, BertConfig
+from transformers import BertTokenizer, BertForTokenClassification, BertConfig
 from tqdm import tqdm
 import torch
-from torch.utils.data import TensorDataset, random_split, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
-weight_path = "chkpt.pth"
+weight_path = "Chkpt.pth"
 batch_size = 16
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 class TestPreprocess:
     
     def __init__(self, tokenizer = tokenizer):
         
         label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
+        
         self.label_map = {}
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
+            
         self.input_ids = []
         self.attention_masks = []
         self.nopad = []
@@ -30,38 +31,84 @@ class TestPreprocess:
 
         input_ids_full = []
         attention_masks = []
-        for sentence in tqdm(text):
+        label_ids_full = []
+        
+        y_label = self.__GetTags(text)
+        for i, sentence in enumerate(text):
             tokens = []
-            for i, word in enumerate(sentence.split()):
+            labels = []
+            for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', sentence, re.UNICODE)):
                 token = self.tokenizer.tokenize(word)
                 tokens.extend(token)
+                label_1 = y_label[i][j]
+                for m in range(len(token)):
+                    labels.append(label_1)
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
+                labels = labels[0:(max_seq_length - 2)]
             ntokens = []
+            label_ids = []
             ntokens.append("[CLS]")
+            label_ids.append(self.label_map["[CLS]"])
             for i, token in enumerate(tokens):
                 ntokens.append(token)
-
+                label_ids.append(self.label_map[labels[i]])
+                    
             ntokens.append("[SEP]")
             self.nopad.append(len(ntokens))
+            label_ids.append(self.label_map["[SEP]"])
             input_ids = tokenizer.convert_tokens_to_ids(ntokens)
             input_mask = [1] * len(input_ids)
 
             while len(input_ids) < max_seq_length:
                 input_ids.append(0)
                 input_mask.append(0)
+                label_ids.append(0)
                 ntokens.append("[Padding]")
             assert len(input_ids) == max_seq_length
             assert len(input_mask) == max_seq_length
             input_ids_full.append(input_ids)
             attention_masks.append(input_mask)
+            label_ids_full.append(label_ids)
+            
         self.input_ids = torch.tensor(input_ids_full)
         self.attention_masks = torch.tensor(attention_masks)
         prediction_data = TensorDataset(self.input_ids, self.attention_masks)
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
-        return self.input_ids, self.attention_masks, prediction_dataloader, self.nopad
+        return self.input_ids, self.attention_masks, prediction_dataloader, self.nopad, label_ids_full
+    
+    def __GetTags(self, text):
         
+        tsya_search = re.compile(r'тся\b')
+        tsiya_search = re.compile(r'ться\b')
+        dicty = {}
+        i = 0
+        for raw in tqdm(text):
+        
+            m = tsya_search.findall(raw)
+            m2 = tsiya_search.findall(raw)
+
+            for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', raw, re.UNICODE)):
+
+                m = tsya_search.search(word)
+                m2 = tsiya_search.search(word)
+                dicty.setdefault(i, {})
+                if m is not None:
+                    dicty[i][j] = m.group() # "тся" label
+                elif (m2 is not None):
+                    dicty[i][j] = m2.group() # "ться" label
+                else:
+                    dicty[i][j] = "O"
+            i+=1
+
+        y_label = []
+        for i in dicty.keys():
+            raw = []
+            for j in range(len(dicty[i])):
+                raw.append(dicty[i][j])
+            y_label.append(raw)
+        return y_label
 
 class TsyaModel:
     def __init__(self, weight_path = weight_path, tokenizer = tokenizer):
@@ -77,6 +124,7 @@ class TsyaModel:
         self.m.load_state_dict(torch.load(weight_path))
         self.m.to(device)
         self.tokenizer = tokenizer
+        
     def predict_batch(self, prediction_dataloader, nopad):
         self.m.eval()
         predicts_full = []
@@ -93,9 +141,8 @@ class TsyaModel:
             prediction = np.argmax(logits, axis=2)
             predicts = []
             for i in range(len(b_input_ids)):
-                #print(tokenizer.convert_ids_to_tokens(b_input_ids[i,:nopad[i*step + i]]))
+
                 predicts.append(prediction[i, :nopad[step]])
-                #print(prediction[i, :nopad[i*step + i]])
                 step+=1
             predicts_full.append(predicts)
             
