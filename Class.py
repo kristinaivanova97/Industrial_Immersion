@@ -7,14 +7,13 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
-tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
 weight_path = "Chkpt.pth"
 batch_size = 16
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class TestPreprocess:
     
-    def __init__(self, tokenizer = tokenizer):
+    def __init__(self):
         
         label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
         
@@ -22,10 +21,10 @@ class TestPreprocess:
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
             
-        self.input_ids = []
-        self.attention_masks = []
-        self.nopad = []
-        self.tokenizer = tokenizer
+        self._input_ids = []
+        self._attention_masks = []
+        self._nopad = []
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         
     def process(self, text, max_seq_length = 512, batch_size = batch_size):
 
@@ -55,9 +54,9 @@ class TestPreprocess:
                 label_ids.append(self.label_map[labels[i]])
                     
             ntokens.append("[SEP]")
-            self.nopad.append(len(ntokens))
+            self._nopad.append(len(ntokens))
             label_ids.append(self.label_map["[SEP]"])
-            input_ids = tokenizer.convert_tokens_to_ids(ntokens)
+            input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
             input_mask = [1] * len(input_ids)
 
             while len(input_ids) < max_seq_length:
@@ -71,12 +70,12 @@ class TestPreprocess:
             attention_masks.append(input_mask)
             label_ids_full.append(label_ids)
             
-        self.input_ids = torch.tensor(input_ids_full)
-        self.attention_masks = torch.tensor(attention_masks)
-        prediction_data = TensorDataset(self.input_ids, self.attention_masks)
+        self._input_ids = torch.tensor(input_ids_full)
+        self._attention_masks = torch.tensor(attention_masks)
+        prediction_data = TensorDataset(self._input_ids, self._attention_masks)
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
-        return self.input_ids, self.attention_masks, prediction_dataloader, self.nopad, label_ids_full
+        return self._input_ids, self._attention_masks, prediction_dataloader, self._nopad, label_ids_full
     
     def __GetTags(self, text):
         
@@ -96,7 +95,7 @@ class TestPreprocess:
                 dicty.setdefault(i, {})
                 if m is not None:
                     dicty[i][j] = m.group() # "тся" label
-                elif (m2 is not None):
+                elif m2 is not None:
                     dicty[i][j] = m2.group() # "ться" label
                 else:
                     dicty[i][j] = "O"
@@ -111,10 +110,9 @@ class TestPreprocess:
         return y_label
 
 class TsyaModel:
-    def __init__(self, weight_path = weight_path, tokenizer = tokenizer):
+    def __init__(self, weight_path = weight_path):
         
         label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
-        
         self.m =  BertForTokenClassification.from_pretrained(
                         'bert-base-multilingual-cased',
                         num_labels = len(label_list),
@@ -123,12 +121,11 @@ class TsyaModel:
                     )
         self.m.load_state_dict(torch.load(weight_path))
         self.m.to(device)
-        self.tokenizer = tokenizer
         
     def predict_batch(self, prediction_dataloader, nopad):
+        
         self.m.eval()
         predicts_full = []
-        sentences_full = []
         step = 0
         for batch in prediction_dataloader:
             batch = tuple(t.to(device) for t in batch)
@@ -162,3 +159,59 @@ class TsyaModel:
         prediction = np.argmax(logits, axis=2)
         predicts.append(prediction[0, :nopad[0]])
         return predicts
+
+class ProcessOutput:
+    
+    def __init__(self):
+        
+        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
+    
+    def process(self, predictions, input_ids, nopad, data_tags):
+    
+        
+        if len(predictions) < 2:
+        
+            toks = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
+            text = self._tokenizer.decode(input_ids[0, :nopad[0]])
+            fine_text = text.replace('[CLS] ', '').replace(' [SEP]', '')
+            tags = np.array(data_tags[0][:nopad[0]])
+            preds =  np.array(list(predictions[0]))
+
+            self.__check_coincide(tags, preds)
+
+            print("Tokens = ", toks)
+            print("Prediction = ", preds)
+            print("Initial Tags = ", tags)
+            print("Fine text = {} \n".format(fine_text))
+
+        else:
+            step = 0
+            for i,predict in enumerate(predictions):
+                for j, pred in enumerate(predict):
+                    toks = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
+                    text = self._tokenizer.decode(input_ids[step, :nopad[step]])
+                    fine_text = text.replace('[CLS] ', '').replace(' [SEP]', '')
+                    nomask_pred = pred[1:-1]
+                    tags =  np.array(data_tags[step][:nopad[step]])
+                    preds = np.array(pred)
+
+                    self.__check_coincide(tags, preds)
+
+                    print("Tokens = ", toks)
+                    print("Prediction = ", preds)
+                    print("Initial Tags = ", tags)
+
+                    print("Fine text = {} \n".format(fine_text))
+                    step+=1
+                    
+    def __check_coincide(self, tags, preds):
+        
+        coincide = np.sum(tags[(tags==4) | (tags==5)] == preds[(tags==4) | (tags==5)])
+        print("Coincide in {} positions with tsya/tsiya ".format(coincide))
+        if coincide == len(tags[(tags==4) | (tags==5)]):
+            if (len(tags[(tags==4) | (tags==5)]) == 0):
+                print("Sentence does not contain words with tsya/tsiya")
+            else:
+                print("Predicted and initial sentences coincide")
+        else:
+            print("Sentence contain a mistake!")

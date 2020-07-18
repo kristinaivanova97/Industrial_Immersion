@@ -19,21 +19,21 @@ class DataPreprocess:
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
             
-        self.input_ids = []
-        self.attention_masks = []
-        self.label_ids = []
-        self.nopad = []
+        self._input_ids = []
+        self._attention_masks = []
+        self._label_ids = []
+        self._nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         self.data = pd.read_csv(path_to_file, index_col=0)
         self.data.reset_index(drop=True, inplace=True)
         y, self.data = self.__label_dict()  # [num of sentense, num of word], contain labels
         
-        self.y_label = []
+        self._y_label = []
         for i in y.keys():
             raw = []
             for j in range(len(y[i])):
                 raw.append(y[i][j])
-            self.y_label.append(raw)
+            self._y_label.append(raw)
             
     # Create labels for every word (or comma) in text
     def __label_dict(self):
@@ -69,11 +69,11 @@ class DataPreprocess:
     def __process(self):
         
         for k,raw in tqdm(enumerate(self.data)):
-            input_ids, input_mask,label_ids, nopad = self.__convert_single_example(raw, self.y_label[k])
-            self.input_ids.append(input_ids)
-            self.attention_masks.append(input_mask)
-            self.label_ids.append(label_ids)
-            self.nopad.append(nopad)
+            input_ids, input_mask,label_ids, nopad = self.__convert_single_example(raw, self._y_label[k])
+            self._input_ids.append(input_ids)
+            self._attention_masks.append(input_mask)
+            self._label_ids.append(label_ids)
+            self._nopad.append(nopad)
 
     # find indices for Bert from our data for each sentence
     def __convert_single_example(self, text, y_label, max_seq_length = 512):
@@ -119,7 +119,7 @@ class DataPreprocess:
     def saveLabels(self, path):
  
         MyFile = open(path, 'w')
-        for raw in tqdm(self.y_label):
+        for raw in tqdm(self._y_label):
             for elem in raw:
                 MyFile.write(str(elem))
                 MyFile.write(' ')
@@ -130,7 +130,7 @@ class DataPreprocess:
         self.__process()
         # save to 3 files
         file_names = ['input_ids_' + ftype + '.txt', 'input_mask_' + ftype + '.txt', 'label_ids_' + ftype + '.txt']
-        features = [self.input_ids, self.attention_masks, self.label_ids]
+        features = [self._input_ids, self._attention_masks, self._label_ids]
 
         for j in range(len(file_names)):
             MyFile = open (file_names[j], 'w')
