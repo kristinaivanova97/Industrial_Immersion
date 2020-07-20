@@ -62,7 +62,7 @@ class GetIndices:
 class TsyaModelTrain:
     
     def __init__(self, epochs = epochs):
-    
+        print('initializating of model')
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased', # Use the 12-layer BERT model, with an uncased vocab.
@@ -70,18 +70,20 @@ class TsyaModelTrain:
             output_attentions = False, # Whether the model returns attentions weights.
             output_hidden_states = False, # Whether the model returns all hidden-states.
         )
+        print('to device')
         self.model.to(device)
-
+        print('Optimizer')
         self.optimizer = AdamW(self.model.parameters(),
                           lr = 2e-5, # args.learning_rate - default is 5e-5
                           eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
                          )
         
-        self.train_dataloader, self.validation_dataloader = self.__Dataset()
+        print('Dataloaders')
+        self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor, ValProcessor=ValProcessor)
         # Total number of training steps is [number of batches] x [number of epochs].
         # (Note that this is not the same as the number of training samples).
         total_steps = len(self.train_dataloader) * epochs
-
+        print('the learning rate scheduler')
         # Create the learning rate scheduler.
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps = 0, num_training_steps = total_steps)
         
@@ -97,20 +99,26 @@ class TsyaModelTrain:
         for p in self.params[-4:]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
         
-    def __Dataset(self, TrainProcessor = TrainProcessor, ValProcessor = ValProcessor):
+    def __Dataset(self, TrainProcessor, ValProcessor):
             
         # Combine the training inputs into a TensorDataset.
 
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:15000],
-                                torch.tensor(TrainProcessor.input_mask)[:15000],
-                                torch.tensor(TrainProcessor.label_ids)[:15000])
-
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:20000]),
-                                    torch.tensor(ValProcessor.input_mask[:20000]),
-                                    torch.tensor(ValProcessor.label_ids[:20000]))
-
+        
+        print("train_tensor_dataset")
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:150],
+                                torch.tensor(TrainProcessor.input_mask)[:150],
+                                torch.tensor(TrainProcessor.label_ids)[:150])
+        
+        print("val_tensor_dataset")
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15]),
+                                    torch.tensor(ValProcessor.input_mask[:15]),
+                                    torch.tensor(ValProcessor.label_ids[:15]))
+        
+        print("Train loader has been loaded")
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
+        print("Train loader has been loaded")
         validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
+        print("Val loader has been loaded")
 
         return train_dataloader, validation_dataloader
     def format_time(self, elapsed):
@@ -286,7 +294,8 @@ class TsyaModelTrain:
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time()-total_t0)))
         torch.save(self.model.state_dict(), "Chkpt.pth")
-
+     
+    
 TrainProcessor = GetIndices(ftype = 'train')
 ValProcessor = GetIndices(ftype = 'val')
 TrainProcessor.Upload()
@@ -300,6 +309,9 @@ print("Sequense len = ", len(TrainProcessor.input_ids[0]))
 print("Num of sequences = ", len(TrainProcessor.input_ids))
 print("Num of val sequences = ", len(ValProcessor.input_ids))
 print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+
+    
+    
 
 model = TsyaModelTrain()
 model.train()

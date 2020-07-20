@@ -5,8 +5,8 @@ from transformers import BertTokenizer
 from tqdm import tqdm
 import math
 
-path_to_train = './data/tsya_data/train_data_bklif.csv'
-path_to_val = './data/tsya_data/val_data_bklif.csv'
+path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
+path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
 path_to_train_labels = 'Labels.txt'
 path_to_val_labels = 'Val_labels.txt'
 

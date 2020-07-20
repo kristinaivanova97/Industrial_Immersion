@@ -10,7 +10,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 import time
-from testing_class import TestPreprocess, TsyaModel, ProcessOutput
+from Class import TestPreprocess, TsyaModel, ProcessOutput
 import argparse
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
