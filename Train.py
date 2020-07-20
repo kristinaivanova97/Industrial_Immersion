@@ -10,9 +10,9 @@ import time
 import datetime
 import random
 
-batch_size = 10
+batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
-max_seq_length = 512 # for bert this limit exists
+max_seq_length = 256 # for bert this limit exists
 label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -33,11 +33,13 @@ class GetIndices:
         features = [self.input_ids, self.input_mask, self.label_ids]
         for i in range(len(self.file_names)):
             my_file = open(self.file_names[i], 'r')
+            lines = my_file.readlines()
             list_of_lists = []
-            for line in my_file:
+            for line in lines[:500]:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 list_of_lists.append(line_list)
+
 
             my_file.close()
             for j in range(len(list_of_lists)):
@@ -105,14 +107,14 @@ class TsyaModelTrain:
 
         
         print("train_tensor_dataset")
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:150],
-                                torch.tensor(TrainProcessor.input_mask)[:150],
-                                torch.tensor(TrainProcessor.label_ids)[:150])
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:150], dtype=torch.int32),
+                                torch.tensor(TrainProcessor.input_mask[:150], dtype=torch.int32),
+                                torch.tensor(TrainProcessor.label_ids[:150], dtype=torch.int32))
         
         print("val_tensor_dataset")
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15]),
-                                    torch.tensor(ValProcessor.input_mask[:15]),
-                                    torch.tensor(ValProcessor.label_ids[:15]))
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15], dtype=torch.int32),
+                                    torch.tensor(ValProcessor.input_mask[:15], dtype=torch.int32),
+                                    torch.tensor(ValProcessor.label_ids[:15], dtype=torch.int32))
         
         print("Train loader has been loaded")
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)

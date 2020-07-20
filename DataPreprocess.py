@@ -14,7 +14,7 @@ class DataPreprocess:
     
     def __init__(self, path_to_file):
         
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
+        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "ться", "тся"]
         self.label_map = {}
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
@@ -116,37 +116,47 @@ class DataPreprocess:
         assert len(label_ids) == max_seq_length
         return input_ids, input_mask, label_ids, nopad
     
-    def saveLabels(self, path):
+    def save_labels(self, path):
  
-        MyFile = open(path, 'w')
+        my_file = open(path, 'w', encoding='utf-8')
         for raw in tqdm(self._y_label):
             for elem in raw:
-                MyFile.write(str(elem))
-                MyFile.write(' ')
-            MyFile.write('\n')
-        MyFile.close()
+                my_file.write(str(elem))
+                my_file.write(' ')
+            my_file.write('\n')
+        my_file.close()
         
-    def saveIndices(self, ftype):
+    def save_indices(self, ftype):
         self.__process()
         # save to 3 files
         file_names = ['input_ids_' + ftype + '.txt', 'input_mask_' + ftype + '.txt', 'label_ids_' + ftype + '.txt']
         features = [self._input_ids, self._attention_masks, self._label_ids]
 
         for j in range(len(file_names)):
-            MyFile = open (file_names[j], 'w')
+            my_file = open (file_names[j], 'w', encoding='utf-8')
             for raw in features[j]:
                 for elem in raw:
-                    MyFile.write(str(elem))
-                    MyFile.write(' ')
-                MyFile.write('\n')
-            MyFile.close()
-            
-TrainProcessor = DataPreprocess(path_to_file = path_to_train)
-ValProcessor = DataPreprocess(path_to_file = path_to_val)
-TrainProcessor.saveLabels(path = path_to_train_labels)
-ValProcessor.saveLabels(path = path_to_val_labels)
-TrainProcessor.saveIndices(ftype = 'train')
-ValProcessor.saveIndices(ftype = 'val')
+                    my_file.write(str(elem))
+                    my_file.write(' ')
+                my_file.write('\n')
+            my_file.close()
+
+
+def main():
+    train_processor = DataPreprocess(path_to_file=path_to_train)
+    val_processor = DataPreprocess(path_to_file=path_to_val)
+
+    train_processor.save_labels(path=path_to_train_labels)
+    val_processor.save_labels(path=path_to_val_labels)
+
+    train_processor.save_indices(ftype='train')
+    val_processor.save_indices(ftype='val')
+
+
+if __name__ == "__main__":
+    main()
+
+
 
 """
 # To check the max length of sentences in text
