@@ -1,3 +1,4 @@
+#from Train_Classes import GetIndices, TsyaModelTrain
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
@@ -12,8 +13,8 @@ import random
 
 batch_size = 10
 epochs = 3 # The BERT authors recommend between 2 and 4.
-max_seq_length = 512 # for bert this limit exists
 label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+max_seq_length = 512 # for bert this limit exists
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
@@ -28,7 +29,7 @@ class GetIndices:
         self.input_mask = []
         self.label_ids = []
         
-    def Upload(self):
+    def upload(self):
         
         features = [self.input_ids, self.input_mask, self.label_ids]
         for i in range(len(self.file_names)):
@@ -44,7 +45,7 @@ class GetIndices:
                 features[i].append(list(map(int, list_of_lists[j])))
 
     
-    def GetLabels(self, filename):
+    def getlabels(self, filename):
         
         # *** not nessesary as wont't be used later ***
         my_file = open(filename, 'r') # 'Labels.txt'
@@ -61,7 +62,7 @@ class GetIndices:
 
 class TsyaModelTrain:
     
-    def __init__(self, epochs = epochs):
+    def __init__(self, TrainProcessor, ValProcessor, epochs = epochs, device = device):
     
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         self.model = BertForTokenClassification.from_pretrained(
@@ -77,7 +78,7 @@ class TsyaModelTrain:
                           eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
                          )
         
-        self.train_dataloader, self.validation_dataloader = self.__Dataset()
+        self.train_dataloader, self.validation_dataloader = self.__dataset(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
         # Total number of training steps is [number of batches] x [number of epochs].
         # (Note that this is not the same as the number of training samples).
         total_steps = len(self.train_dataloader) * epochs
@@ -97,7 +98,7 @@ class TsyaModelTrain:
         for p in self.params[-4:]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
         
-    def __Dataset(self, TrainProcessor = TrainProcessor, ValProcessor = ValProcessor):
+    def __dataset(self, TrainProcessor, ValProcessor):
             
         # Combine the training inputs into a TensorDataset.
 
@@ -289,8 +290,8 @@ class TsyaModelTrain:
 
 TrainProcessor = GetIndices(ftype = 'train')
 ValProcessor = GetIndices(ftype = 'val')
-TrainProcessor.Upload()
-ValProcessor.Upload()
+TrainProcessor.upload()
+ValProcessor.upload()
 
 assert len(TrainProcessor.input_ids[0]) == max_seq_length
 assert len(TrainProcessor.input_mask[0]) == max_seq_length
@@ -301,5 +302,5 @@ print("Num of sequences = ", len(TrainProcessor.input_ids))
 print("Num of val sequences = ", len(ValProcessor.input_ids))
 print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-model = TsyaModelTrain()
+model = TsyaModelTrain(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
 model.train()
