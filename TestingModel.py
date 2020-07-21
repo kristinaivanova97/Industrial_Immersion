@@ -20,17 +20,18 @@ def main(path_file):
     
     data_processor = TestPreprocess()
     
-    if path_to_file:
-        f = open(path_to_file, 'r')
-        text_data = []
-        for line in f:
-            text_data.append(line.split('\n')[0])
-        f.close()
+    if path_file:
+        with open(path_file, 'r') as f:
+            text_data = []
+            for line in f:
+                text_data.append(line.split('\n')[0])
     else:
-        num_of_sentences = int(input("Число предложений: "))
+        # num_of_sentences = int(input("Число предложений: "))
+        num_of_sentences = 1
         text_data = []
         for i in range(num_of_sentences):
-            text = input("Предложение: ")
+            # text = input("Предложение: ")
+            text = "Сейчас вся троица находиться в изоляторе."
             text_data.append(text)
         
     start_time = time.time()
@@ -38,14 +39,16 @@ def main(path_file):
 
     model = TsyaModel()
     
-    if len(text_data) == 1:
-        predicts = model.predict_sentence(input_ids, mask_ids, nopad)
+    # if len(text_data) == 1:
+    #     predicts = model.predict_sentence(input_ids, mask_ids, nopad)
+    #
+    # else:
+    predicts = model.predict_batch(prediction_dataloader, nopad)
 
-    else:
-        predicts = model.predict_batch(prediction_dataloader, nopad)
-    
+
+
     output = ProcessOutput()
-    output.process(predicts, input_ids, nopad, label_ids)
+    output.process(predicts, input_ids, nopad, label_ids, text_data)
     
     print('Elapsed time: ', time.time() - start_time)
 
