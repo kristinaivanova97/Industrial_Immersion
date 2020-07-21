@@ -10,9 +10,9 @@ import time
 import datetime
 import random
 
-batch_size = 1
+batch_size = 5
 epochs = 3 # The BERT authors recommend between 2 and 4.
-max_seq_length = 256 # for bert this limit exists
+max_seq_length = 512 # for bert this limit exists
 label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,13 +28,14 @@ class GetIndices:
         self.input_mask = []
         self.label_ids = []
         
-    def Upload(self):
+    def upload(self):
         
         features = [self.input_ids, self.input_mask, self.label_ids]
         for i in range(len(self.file_names)):
             my_file = open(self.file_names[i], 'r')
             lines = my_file.readlines()
             list_of_lists = []
+            #TODO delete [:500], it is for better speed
             for line in lines[:500]:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -46,7 +47,7 @@ class GetIndices:
                 features[i].append(list(map(int, list_of_lists[j])))
 
     
-    def GetLabels(self, filename):
+    def get_labels(self, filename):
         
         # *** not nessesary as wont't be used later ***
         my_file = open(filename, 'r') # 'Labels.txt'
@@ -81,6 +82,21 @@ class TsyaModelTrain:
                          )
         
         print('Dataloaders')
+
+        TrainProcessor = GetIndices(ftype='train')
+        ValProcessor = GetIndices(ftype='val')
+        TrainProcessor.upload()
+        ValProcessor.upload()
+
+        assert len(TrainProcessor.input_ids[0]) == max_seq_length
+        assert len(TrainProcessor.input_mask[0]) == max_seq_length
+        assert len(TrainProcessor.label_ids[0]) == max_seq_length
+
+        print("Sequense len = ", len(TrainProcessor.input_ids[0]))
+        print("Num of sequences = ", len(TrainProcessor.input_ids))
+        print("Num of val sequences = ", len(ValProcessor.input_ids))
+        print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+
         self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor, ValProcessor=ValProcessor)
         # Total number of training steps is [number of batches] x [number of epochs].
         # (Note that this is not the same as the number of training samples).
@@ -107,14 +123,14 @@ class TsyaModelTrain:
 
         
         print("train_tensor_dataset")
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:150], dtype=torch.int32),
-                                torch.tensor(TrainProcessor.input_mask[:150], dtype=torch.int32),
-                                torch.tensor(TrainProcessor.label_ids[:150], dtype=torch.int32))
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:150]),
+                                torch.tensor(TrainProcessor.input_mask[:150]),
+                                torch.tensor(TrainProcessor.label_ids[:150]))
         
         print("val_tensor_dataset")
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15], dtype=torch.int32),
-                                    torch.tensor(ValProcessor.input_mask[:15], dtype=torch.int32),
-                                    torch.tensor(ValProcessor.label_ids[:15], dtype=torch.int32))
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15]),
+                                    torch.tensor(ValProcessor.input_mask[:15]),
+                                    torch.tensor(ValProcessor.label_ids[:15]))
         
         print("Train loader has been loaded")
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
@@ -296,24 +312,14 @@ class TsyaModelTrain:
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time()-total_t0)))
         torch.save(self.model.state_dict(), "Chkpt.pth")
-     
-    
-TrainProcessor = GetIndices(ftype = 'train')
-ValProcessor = GetIndices(ftype = 'val')
-TrainProcessor.Upload()
-ValProcessor.Upload()
 
-assert len(TrainProcessor.input_ids[0]) == max_seq_length
-assert len(TrainProcessor.input_mask[0]) == max_seq_length
-assert len(TrainProcessor.label_ids[0]) == max_seq_length
 
-print("Sequense len = ", len(TrainProcessor.input_ids[0]))
-print("Num of sequences = ", len(TrainProcessor.input_ids))
-print("Num of val sequences = ", len(ValProcessor.input_ids))
-print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+def main():
 
-    
-    
+    model = TsyaModelTrain()
+    model.train()
 
-model = TsyaModelTrain()
-model.train()
+
+if __name__ == "__main__":
+    main()
+
