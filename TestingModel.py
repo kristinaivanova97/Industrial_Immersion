@@ -39,17 +39,12 @@ def main(path_to_file):
 
     model = TsyaModel()
     
-    # if len(text_data) == 1:
-    #     predicts = model.predict_sentence(input_ids, mask_ids, nopad)
-    #
-    # else:
-    predicts = model.predict_batch(prediction_dataloader, nopad)
-
-
-
-    output = ProcessOutput()
-    output.process(predicts, input_ids, nopad, label_ids, text_data)
+    #if len(text_data) == 1:
+    #    predicts = model.predict_sentence(input_ids, mask_ids, nopad)
     
+    predicts = model.predict_batch(prediction_dataloader, nopad)
+    output = ProcessOutput()
+    incorrect, message, correct_text = output.process(predicts, input_ids, nopad, label_ids, text_data)
     print('Elapsed time: ', time.time() - start_time)
 
 if __name__ == '__main__':
