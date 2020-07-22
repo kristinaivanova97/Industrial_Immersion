@@ -36,7 +36,7 @@ class GetIndices:
             lines = my_file.readlines()
             list_of_lists = []
             #TODO delete [:500], it is for better speed
-            for line in lines[:500]:
+            for line in lines:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 list_of_lists.append(line_list)
@@ -66,7 +66,7 @@ class TsyaModelTrain:
     
     def __init__(self, epochs = epochs):
         print('initializating of model')
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased', # Use the 12-layer BERT model, with an uncased vocab.
             num_labels = len(label_list), # The number of output labels
@@ -123,14 +123,14 @@ class TsyaModelTrain:
 
         
         print("train_tensor_dataset")
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:150]),
-                                torch.tensor(TrainProcessor.input_mask[:150]),
-                                torch.tensor(TrainProcessor.label_ids[:150]))
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:20000]),
+                                torch.tensor(TrainProcessor.input_mask[:20000]),
+                                torch.tensor(TrainProcessor.label_ids[:20000]))
         
         print("val_tensor_dataset")
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:15]),
-                                    torch.tensor(ValProcessor.input_mask[:15]),
-                                    torch.tensor(ValProcessor.label_ids[:15]))
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:5000]),
+                                    torch.tensor(ValProcessor.input_mask[:5000]),
+                                    torch.tensor(ValProcessor.label_ids[:5000]))
         
         print("Train loader has been loaded")
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)

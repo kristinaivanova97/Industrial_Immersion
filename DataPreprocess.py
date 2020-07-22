@@ -23,7 +23,7 @@ class DataPreprocess:
         self._attention_masks = []
         self._label_ids = []
         self._nopad = []
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.data = pd.read_csv(path_to_file, index_col=0)
         self.data.reset_index(drop=True, inplace=True)
         y, self.data = self.__label_dict()  # [num of sentense, num of word], contain labels

@@ -31,7 +31,7 @@ def main(path_file):
         text_data = []
         for i in range(num_of_sentences):
             # text = input("Предложение: ")
-            text = "Сейчас вся троица находиться в изоляторе."
+            text = "Повесится можно"
             text_data.append(text)
         
     start_time = time.time()
