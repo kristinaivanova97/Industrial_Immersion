@@ -16,7 +16,7 @@ import argparse
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
     
-def main(path_file):
+def main(path_to_file):
     
     data_processor = TestPreprocess()
     
