@@ -10,33 +10,25 @@ path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
 path_to_train_labels = 'Labels.txt'
 path_to_val_labels = 'Val_labels.txt'
 
+my_file = 'test.txt'
 class DataPreprocess:
     
     def __init__(self, path_to_file):
-        
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "ться", "тся"]
+
+        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
+                      "[##]"]
         self.label_map = {}
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
             
-        self._input_ids = []
-        self._attention_masks = []
-        self._label_ids = []
-        self._nopad = []
+        self.input_ids = []
+        self.attention_masks = []
+        self.label_ids = []
+        self.nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.data = pd.read_csv(path_to_file, index_col=0)
-        self.data.reset_index(drop=True, inplace=True)
-        y, self.data = self.__label_dict()  # [num of sentense, num of word], contain labels
-        
-        self._y_label = []
-        for i in y.keys():
-            raw = []
-            for j in range(len(y[i])):
-                raw.append(y[i][j])
-            self._y_label.append(raw)
             
     # Create labels for every word (or comma) in text
-    def __label_dict(self):
+    def label_dict(self):
         tsya_search = re.compile(r'тся\b')
         tsiya_search = re.compile(r'ться\b')
         dicty = {}
@@ -66,29 +58,57 @@ class DataPreprocess:
         print("Num of sentences which have a mistake and contain more than 1 word with ться/тся = ", k)
         return dicty, new_data_x
     
-    def __process(self):
-        
-        for k,raw in tqdm(enumerate(self.data)):
-            input_ids, input_mask,label_ids, nopad = self.__convert_single_example(raw, self._y_label[k])
-            self._input_ids.append(input_ids)
-            self._attention_masks.append(input_mask)
-            self._label_ids.append(label_ids)
-            self._nopad.append(nopad)
+    def process(self):
 
-    # find indices for Bert from our data for each sentence
-    def __convert_single_example(self, text, y_label, max_seq_length = 512):
+        with open(my_file, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            list_of_words = []
+            list_of_labeles = []
+            # list_of_sentenes = []
+            # list_of_labeles_sentence = []
+            for line in lines:
+                stripped_line = line.strip()
+                line_list = stripped_line.split()
+                if len(line_list) > 1:
+                    list_of_words.append(line_list[0])
+                    list_of_labeles.append(line_list[1])
+                else:
+                    # list_of_sentenes.append(list_of_words)
+                    # list_of_labeles_sentence.append(list_of_labeles)
 
-        #textlist = text.split()
-        textlist = re.findall(r'\w+|[^\w\s]', text, re.UNICODE)
+
+                    input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
+                    self.input_ids.append(input_ids)
+                    self.attention_masks.append(input_mask)
+                    self.label_ids.append(label_ids)
+                    self.nopad.append(nopad)
+                    list_of_words = []
+                    list_of_labeles = []
+
+        # for k,raw in tqdm(enumerate(self.data)):
+        #     input_ids, input_mask,label_ids, nopad = self.convert_single_example(raw, self.y_label[k])
+        #     self.input_ids.append(input_ids)
+        #     self.attention_masks.append(input_mask)
+        #     self.label_ids.append(label_ids)
+        #     self.nopad.append(nopad)
+
+
+    def convert_single_example(self, sentence, sentence_label):
+        max_seq_length = 512
+
+
         tokens = []
         labels = []
         nopad = []
-        for i, word in enumerate(textlist):
+        for i, word in enumerate(sentence):
             token = self.tokenizer.tokenize(word)
             tokens.extend(token)
-            label_1 = y_label[i]
+            word_label = sentence_label[i]
             for m in range(len(token)):
-                labels.append(label_1)
+                if m == 0:
+                    labels.append(word_label)
+                else:
+                    labels.append("[##]")
         if len(tokens) >= max_seq_length - 1:
             tokens = tokens[0:(max_seq_length - 2)]
             labels = labels[0:(max_seq_length - 2)]
@@ -114,12 +134,63 @@ class DataPreprocess:
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(label_ids) == max_seq_length
+
         return input_ids, input_mask, label_ids, nopad
-    
+
+
+
+
+
+    # find indices for Bert from our data for each sentence
+    # def convert_single_example(self, text, y_label, max_seq_length = 512):
+    #
+    #     #textlist = text.split()
+    #     textlist = re.findall(r'\w+|[^\w\s]', text, re.UNICODE)
+    #     tokens = []
+    #     labels = []
+    #     nopad = []
+    #     for i, word in enumerate(textlist):
+    #         token = self.tokenizer.tokenize(word)
+    #         tokens.extend(token)
+    #         label_1 = y_label[i]
+    #         for m in range(len(token)):
+    #             labels.append(label_1)
+    #
+    #
+    #
+    #     if len(tokens) >= max_seq_length - 1:
+    #         tokens = tokens[0:(max_seq_length - 2)]
+    #         labels = labels[0:(max_seq_length - 2)]
+    #     ntokens = []
+    #     label_ids = []
+    #     ntokens.append("[CLS]")
+    #     label_ids.append(self.label_map["[CLS]"])
+    #     for i, token in enumerate(tokens):
+    #         ntokens.append(token)
+    #         label_ids.append(self.label_map[labels[i]])
+    #
+    #     ntokens.append("[SEP]")
+    #
+    #
+    #     nopad.append(len(ntokens))
+    #     label_ids.append(self.label_map["[SEP]"])
+    #     input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
+    #     input_mask = [1] * len(input_ids)
+    #
+    #     while len(input_ids) < max_seq_length:
+    #         input_ids.append(0)
+    #         input_mask.append(0)
+    #         label_ids.append(0)
+    #         ntokens.append("[Padding]")
+    #     assert len(input_ids) == max_seq_length
+    #     assert len(input_mask) == max_seq_length
+    #     assert len(label_ids) == max_seq_length
+    #     return input_ids, input_mask, label_ids, nopad
+    #
     def save_labels(self, path):
  
         my_file = open(path, 'w', encoding='utf-8')
-        for raw in tqdm(self._y_label):
+        for raw in tqdm(self.y_label):
             for elem in raw:
                 my_file.write(str(elem))
                 my_file.write(' ')
@@ -127,10 +198,10 @@ class DataPreprocess:
         my_file.close()
         
     def save_indices(self, ftype):
-        self.__process()
+        self.process()
         # save to 3 files
         file_names = ['input_ids_' + ftype + '.txt', 'input_mask_' + ftype + '.txt', 'label_ids_' + ftype + '.txt']
-        features = [self._input_ids, self._attention_masks, self._label_ids]
+        features = [self.input_ids, self.attention_masks, self.label_ids]
 
         for j in range(len(file_names)):
             my_file = open (file_names[j], 'w', encoding='utf-8')

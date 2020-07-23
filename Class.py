@@ -9,6 +9,7 @@ from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 weight_path = "Chkpt.pth"
 batch_size = 16
+max_seq_length = 512
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -27,13 +28,13 @@ class TestPreprocess:
         self._nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         
-    def process(self, text, max_seq_length = 512, batch_size = batch_size):
+    def process(self, text, max_seq_length = max_seq_length, batch_size = batch_size):
 
         input_ids_full = []
         attention_masks = []
         label_ids_full = []
         
-        y_label = self._gettags(text)
+        y_label = self.gettags(text)
         for i, sentence in enumerate(text):
             tokens = []
             labels = []
@@ -43,6 +44,8 @@ class TestPreprocess:
                 label_1 = y_label[i][j]
                 for m in range(len(token)):
                     labels.append(label_1)
+
+
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
                 labels = labels[0:(max_seq_length - 2)]
@@ -78,14 +81,14 @@ class TestPreprocess:
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return self._input_ids, self._attention_masks, prediction_dataloader, self._nopad, label_ids_full
     
-    def _gettags(self, text):
-        
+    def gettags(self, text):
+
         tsya_search = re.compile(r'тся\b')
         tsiya_search = re.compile(r'ться\b')
         dicty = {}
         i = 0
         for raw in tqdm(text):
-        
+
             m = tsya_search.findall(raw)
             m2 = tsiya_search.findall(raw)
 

@@ -14,77 +14,101 @@ batch_size = 5
 epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
 label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+data_path = './data/'
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Device: {device}")
 
-# input indices are created in another file (DataPreprocess.py) - essential for Bert model
+weight_path = "Chkpt.pth"
+
+
 class GetIndices:
-    
-    def __init__(self, ftype):
-        
-        self.file_names = ['input_ids_' + ftype + '.txt', 'input_mask_' + ftype + '.txt', 'label_ids_' + ftype + '.txt']
+
+    def __init__(self, ftype, data_path):
+        self.file_names = [data_path + 'input_ids_' + ftype + '.txt', data_path + 'input_mask_' + ftype + '.txt', data_path + 'label_ids_' + ftype + '.txt']
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
-        
     def upload(self):
-        
+
         features = [self.input_ids, self.input_mask, self.label_ids]
         for i in range(len(self.file_names)):
             my_file = open(self.file_names[i], 'r')
             lines = my_file.readlines()
             list_of_lists = []
-            #TODO delete [:500], it is for better speed
+            # TODO delete [:500], it is for better speed
             for line in lines:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 list_of_lists.append(line_list)
 
-
             my_file.close()
             for j in range(len(list_of_lists)):
                 features[i].append(list(map(int, list_of_lists[j])))
 
-    
-    def get_labels(self, filename):
-        
-        # *** not nessesary as wont't be used later ***
-        my_file = open(filename, 'r') # 'Labels.txt'
-        y_label = []
-        for line in my_file:
-            stripped_line = line.strip()
-            line_list = stripped_line.split()
-            y_label.append(line_list)
-        my_file.close()
-        print("Size of y_label = ", len(y_label))
-        print("*** pleminary labels are created ***")
-        
-        return y_label
+    # def get_labels(self, filename):
+    #
+    #     # *** not nessesary as wont't be used later ***
+    #     my_file = open(filename, 'r')  # 'Labels.txt'
+    #     y_label = []
+    #     for line in my_file:
+    #         stripped_line = line.strip()
+    #         line_list = stripped_line.split()
+    #         y_label.append(line_list)
+    #     my_file.close()
+    #     print("Size of y_label = ", len(y_label))
+    #     print("*** pleminary labels are created ***")
+    #
+    #     return y_label
 
-class TsyaModelTrain:
-    
-    def __init__(self, epochs = epochs):
-        print('initializating of model')
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+
+class TsyaModel:
+
+
+    def __init__(self, weight_path, train_from_chk):
+
+        self.weight_path = weight_path
+        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "ться", "тся"]
+
+        self.label_map = {}
+        for (i, label) in enumerate(label_list):
+            self.label_map[label] = i
+
         self.model = BertForTokenClassification.from_pretrained(
-            'bert-base-multilingual-cased', # Use the 12-layer BERT model, with an uncased vocab.
-            num_labels = len(label_list), # The number of output labels
-            output_attentions = False, # Whether the model returns attentions weights.
-            output_hidden_states = False, # Whether the model returns all hidden-states.
+            'bert-base-multilingual-cased',
+            num_labels=len(label_list),
+            output_attentions=False,
+            output_hidden_states=False,
         )
-        print('to device')
-        self.model.to(device)
-        print('Optimizer')
+        if train_from_chk:
+            self.model.load_state_dict(torch.load(self.weight_path))
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.optimizer = AdamW(self.model.parameters(),
                           lr = 2e-5, # args.learning_rate - default is 5e-5
                           eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
                          )
-        
-        print('Dataloaders')
+        self.model.to(device)
+        self.seed_val = 42
 
-        TrainProcessor = GetIndices(ftype='train')
-        ValProcessor = GetIndices(ftype='val')
+    def format_time(self, elapsed):
+
+        '''
+        Takes a time in seconds and returns a string hh:mm:ss
+        '''
+        elapsed_rounded = int(round((elapsed)))
+        return str(datetime.timedelta(seconds=elapsed_rounded))
+
+    # Function to calculate the accuracy of our predictions vs labels
+    def flat_accuracy(self, preds, labels):
+
+        pred_flat = np.argmax(preds, axis=2).flatten()
+        labels_flat = labels.flatten()
+        return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
+
+    def train(self, data_path=data_path):
+
+        TrainProcessor = GetIndices(ftype='train', data_path=data_path)
+        ValProcessor = GetIndices(ftype='val', data_path=data_path)
         TrainProcessor.upload()
         ValProcessor.upload()
 
@@ -97,14 +121,13 @@ class TsyaModelTrain:
         print("Num of val sequences = ", len(ValProcessor.input_ids))
         print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-        self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor, ValProcessor=ValProcessor)
-        # Total number of training steps is [number of batches] x [number of epochs].
-        # (Note that this is not the same as the number of training samples).
+        self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor,
+                                                                           ValProcessor=ValProcessor)
         total_steps = len(self.train_dataloader) * epochs
-        print('the learning rate scheduler')
-        # Create the learning rate scheduler.
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps = 0, num_training_steps = total_steps)
-        
+
+        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
+                                                         num_training_steps=total_steps)
+
         self.params = list(self.model.named_parameters())
 
         print('==== Embedding Layer ====\n')
@@ -116,55 +139,11 @@ class TsyaModelTrain:
 
         for p in self.params[-4:]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
-        
-    def __Dataset(self, TrainProcessor, ValProcessor):
-            
-        # Combine the training inputs into a TensorDataset.
 
-        
-        print("train_tensor_dataset")
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:20000]),
-                                torch.tensor(TrainProcessor.input_mask[:20000]),
-                                torch.tensor(TrainProcessor.label_ids[:20000]))
-        
-        print("val_tensor_dataset")
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:5000]),
-                                    torch.tensor(ValProcessor.input_mask[:5000]),
-                                    torch.tensor(ValProcessor.label_ids[:5000]))
-        
-        print("Train loader has been loaded")
-        train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
-        print("Train loader has been loaded")
-        validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
-        print("Val loader has been loaded")
-
-        return train_dataloader, validation_dataloader
-
-
-    def format_time(self, elapsed):
-        
-        '''
-        Takes a time in seconds and returns a string hh:mm:ss
-        '''
-        elapsed_rounded = int(round((elapsed)))
-        return str(datetime.timedelta(seconds=elapsed_rounded))
-
-    # Function to calculate the accuracy of our predictions vs labels
-    def flat_accuracy(self, preds, labels):
-        
-        pred_flat = np.argmax(preds, axis=2).flatten()
-        labels_flat = labels.flatten()
-        return np.sum(pred_flat[labels_flat!=0] == labels_flat[labels_flat!=0]) / len(labels_flat[labels_flat!=0])
-    
-    def train(self, epochs = epochs):
-        
-        # This training code is based on the `run_glue.py` script here:
-        # https://github.com/huggingface/transformers/blob/5bfcd0485ece086ebcbed2d008813037968a9e58/examples/run_glue.py#L128
-        seed_val = 42
-        random.seed(seed_val)
-        np.random.seed(seed_val)
-        torch.manual_seed(seed_val)
-        torch.cuda.manual_seed_all(seed_val)
+        random.seed(self.seed_val)
+        np.random.seed(self.seed_val)
+        torch.manual_seed(self.seed_val)
+        torch.cuda.manual_seed_all(self.seed_val)
 
         training_stats = []
         total_t0 = time.time()
@@ -190,9 +169,10 @@ class TsyaModelTrain:
                 if step % 40 == 0 and not step == 0:
                     # Calculate elapsed time in minutes.
                     elapsed = self.format_time(time.time() - t0)
-                    
+
                     # Report progress.
-                    print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(self.train_dataloader), elapsed))
+                    print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(self.train_dataloader),
+                                                                                elapsed))
 
                 # Unpack this training batch from our dataloader.
                 # `batch` contains three pytorch tensors:
@@ -211,9 +191,9 @@ class TsyaModelTrain:
                 # the loss (because we provided labels) and the "logits"--the model
                 # outputs prior to activation.
                 loss, logits = self.model(b_input_ids,
-                                     token_type_ids=None, #b_segment,
-                                     attention_mask=b_input_mask,
-                                     labels=b_labels)
+                                          token_type_ids=None,  # b_segment,
+                                          attention_mask=b_input_mask,
+                                          labels=b_labels)
 
                 total_train_loss += loss.item()
                 loss.backward()
@@ -249,7 +229,6 @@ class TsyaModelTrain:
 
             # Evaluate data for one epoch
             for batch in self.validation_dataloader:
-
                 b_input_ids = batch[0].to(device)
                 b_input_mask = batch[1].to(device)
                 b_labels = batch[2].to(device)
@@ -257,7 +236,6 @@ class TsyaModelTrain:
                 # Tell pytorch not to bother with constructing the compute graph during
                 # the forward pass, since this is only needed for backprop (training).
                 with torch.no_grad():
-
                     # Forward pass, calculate logit predictions.
                     # token_type_ids is the same as the "segment ids", which
                     # differentiates sentence 1 and 2 in 2-sentence tasks.
@@ -266,9 +244,9 @@ class TsyaModelTrain:
                     # Get the "logits" output by the model. The "logits" are the output
                     # values prior to applying an activation function like the softmax.
                     (loss, logits) = self.model(b_input_ids,
-                                           token_type_ids=None, #b_segment,
-                                           attention_mask=b_input_mask,
-                                           labels=b_labels)
+                                                token_type_ids=None,  # b_segment,
+                                                attention_mask=b_input_mask,
+                                                labels=b_labels)
 
                 total_eval_loss += loss.item()
                 logits = logits.detach().cpu().numpy()
@@ -279,8 +257,8 @@ class TsyaModelTrain:
                 total_eval_accuracy += self.flat_accuracy(logits, label_ids)
             print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
             last = np.argmax(logits, axis=2)
-            part = last[0,:]
-            part_true = label_ids[0,:]
+            part = last[0, :]
+            part_true = label_ids[0, :]
             print("Last true = ", part_true)
             print("Last prediction", part)
 
@@ -310,18 +288,54 @@ class TsyaModelTrain:
 
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
-            torch.save(self.model.state_dict(), "Chkpt.pth")
+            torch.save(self.model.state_dict(), self.weight_path)
         print("Training complete!")
-        print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time()-total_t0)))
-        torch.save(self.model.state_dict(), "Chkpt.pth")
+        print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time() - total_t0)))
+        torch.save(self.model.state_dict(), self.weight_path)
 
 
-def main():
 
-    model = TsyaModelTrain()
-    model.train()
+    def predict(self, prediction_dataloader, nopad):
+        self.model.eval()
+        predicts_full = []
+        step = 0
+        for batch in prediction_dataloader:
+            batch = tuple(t.to(device) for t in batch)
+            b_input_ids, b_input_mask = batch
+            with torch.no_grad():
+
+                output = self.model(b_input_ids, token_type_ids=None,
+                                    attention_mask=b_input_mask)
+            logits = output[0].detach().cpu().numpy()
+            prediction = np.argmax(logits, axis=2)
+            predicts = []
+            for i in range(len(b_input_ids)):
+                predicts.append(prediction[i, :nopad[step]])
+                step += 1
+            predicts_full.append(predicts)
+
+        return predicts_full
 
 
-if __name__ == "__main__":
-    main()
+    def __Dataset(self, TrainProcessor, ValProcessor):
+
+        # Combine the training inputs into a TensorDataset.
+
+        print("train_tensor_dataset")
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:20000]),
+                                torch.tensor(TrainProcessor.input_mask[:20000]),
+                                torch.tensor(TrainProcessor.label_ids[:20000]))
+
+        print("val_tensor_dataset")
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:5000]),
+                                    torch.tensor(ValProcessor.input_mask[:5000]),
+                                    torch.tensor(ValProcessor.label_ids[:5000]))
+
+        print("Train loader has been loaded")
+        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        print("Train loader has been loaded")
+        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
+        print("Val loader has been loaded")
+
+        return train_dataloader, validation_dataloader
 
