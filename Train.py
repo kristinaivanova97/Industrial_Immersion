@@ -9,11 +9,11 @@ from torch.utils.data import TensorDataset, random_split, DataLoader, RandomSamp
 import time
 import datetime
 import random
+from tqdm import tqdm
 
-batch_size = 5
+batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
-max_seq_length = 512 # for bert this limit exists
-label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+data_dir = "./new_data/"
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
@@ -21,9 +21,9 @@ print(f"Device: {device}")
 # input indices are created in another file (DataPreprocess.py) - essential for Bert model
 class GetIndices:
     
-    def __init__(self, ftype):
+    def __init__(self, ftype, data_dir = data_dir):
         
-        self.file_names = ['input_ids_' + ftype + '.txt', 'input_mask_' + ftype + '.txt', 'label_ids_' + ftype + '.txt']
+        self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
@@ -31,23 +31,20 @@ class GetIndices:
     def upload(self):
         
         features = [self.input_ids, self.input_mask, self.label_ids]
-        for i in range(len(self.file_names)):
+        for i in tqdm(range(len(self.file_names))):
             my_file = open(self.file_names[i], 'r')
-            lines = my_file.readlines()
             list_of_lists = []
-            #TODO delete [:500], it is for better speed
-            for line in lines:
+            for line in my_file:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 list_of_lists.append(line_list)
-
 
             my_file.close()
             for j in range(len(list_of_lists)):
                 features[i].append(list(map(int, list_of_lists[j])))
 
     
-    def get_labels(self, filename):
+    def getlabels(self, filename):
         
         # *** not nessesary as wont't be used later ***
         my_file = open(filename, 'r') # 'Labels.txt'
@@ -64,44 +61,31 @@ class GetIndices:
 
 class TsyaModelTrain:
     
-    def __init__(self, epochs = epochs):
-        print('initializating of model')
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+    #def __init__(self, TrainProcessor, ValProcessor, epochs = epochs, device = device):
+    def __init__(self, DataProcessor, epochs = epochs, device = device):
+        label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased', # Use the 12-layer BERT model, with an uncased vocab.
             num_labels = len(label_list), # The number of output labels
             output_attentions = False, # Whether the model returns attentions weights.
             output_hidden_states = False, # Whether the model returns all hidden-states.
         )
-        print('to device')
         self.model.to(device)
-        print('Optimizer')
+
         self.optimizer = AdamW(self.model.parameters(),
                           lr = 2e-5, # args.learning_rate - default is 5e-5
                           eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
                          )
         
-        print('Dataloaders')
-
-        TrainProcessor = GetIndices(ftype='train')
-        ValProcessor = GetIndices(ftype='val')
-        TrainProcessor.upload()
-        ValProcessor.upload()
-
-        assert len(TrainProcessor.input_ids[0]) == max_seq_length
-        assert len(TrainProcessor.input_mask[0]) == max_seq_length
-        assert len(TrainProcessor.label_ids[0]) == max_seq_length
-
-        print("Sequense len = ", len(TrainProcessor.input_ids[0]))
-        print("Num of sequences = ", len(TrainProcessor.input_ids))
-        print("Num of val sequences = ", len(ValProcessor.input_ids))
-        print("files with input ids, masks, segment ids and label ids are loaded succesfully")
-
-        self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor, ValProcessor=ValProcessor)
+        #self.train_dataloader, self.validation_dataloader = self.__dataset(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
+        
+        self.train_dataloader, self.validation_dataloader = self.__new_dataset(DataProcessor = DataProcessor)
+           
         # Total number of training steps is [number of batches] x [number of epochs].
         # (Note that this is not the same as the number of training samples).
         total_steps = len(self.train_dataloader) * epochs
-        print('the learning rate scheduler')
+
         # Create the learning rate scheduler.
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps = 0, num_training_steps = total_steps)
         
@@ -117,28 +101,36 @@ class TsyaModelTrain:
         for p in self.params[-4:]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
         
-    def __Dataset(self, TrainProcessor, ValProcessor):
+    def __dataset(self, TrainProcessor, ValProcessor):
             
         # Combine the training inputs into a TensorDataset.
 
-        
-        print("train_tensor_dataset")
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:20000]),
-                                torch.tensor(TrainProcessor.input_mask[:20000]),
-                                torch.tensor(TrainProcessor.label_ids[:20000]))
-        
-        print("val_tensor_dataset")
-        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:5000]),
-                                    torch.tensor(ValProcessor.input_mask[:5000]),
-                                    torch.tensor(ValProcessor.label_ids[:5000]))
-        
-        print("Train loader has been loaded")
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:15000],
+                                torch.tensor(TrainProcessor.input_mask)[:15000],
+                                torch.tensor(TrainProcessor.label_ids)[:15000])
+
+        val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:20000]),
+                                    torch.tensor(ValProcessor.input_mask[:20000]),
+                                    torch.tensor(ValProcessor.label_ids[:20000]))
+
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
-        print("Train loader has been loaded")
         validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
-        print("Val loader has been loaded")
 
         return train_dataloader, validation_dataloader
+    
+    def __new_dataset(self, DataProcessor):
+        
+        dataset = TensorDataset(torch.tensor(DataProcessor.input_ids)[:15000],
+                                torch.tensor(DataProcessor.input_mask)[:15000],
+                                torch.tensor(DataProcessor.label_ids)[:15000])
+        val_dataset = TensorDataset(torch.tensor(DataProcessor.input_ids)[15000:20000],
+                                torch.tensor(DataProcessor.input_mask)[15000:20000],
+                                torch.tensor(DataProcessor.label_ids)[15000:20000])
+        train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
+        validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
+
+        return train_dataloader, validation_dataloader
+    
     def format_time(self, elapsed):
         
         '''
@@ -308,17 +300,26 @@ class TsyaModelTrain:
 
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
-            torch.save(self.model.state_dict(), "Chkpt.pth")
+            torch.save(self.model.state_dict(), "Chkpt2.pth")
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time()-total_t0)))
-        torch.save(self.model.state_dict(), "Chkpt.pth")
-
+        torch.save(self.model.state_dict(), "Chkpt2.pth")
 
 def main():
 
-    model = TsyaModelTrain()
-    model.train()
+    DataProcessor = GetIndices(ftype = 'data')
+    DataProcessor.upload()
+    assert len(DataProcessor.input_ids[0]) == max_seq_length
+    assert len(DataProcessor.input_mask[0]) == max_seq_length
+    assert len(DataProcessor.label_ids[0]) == max_seq_length
 
+    print("Sequense len = ", len(DataProcessor.input_ids[0]))
+    print("Num of sequences = ", len(DataProcessor.input_ids))
+    print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+
+    #model = TsyaModelTrain(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
+    model = TsyaModelTrain(DataProcessor)
+    model.train()
 
 if __name__ == "__main__":
     main()
