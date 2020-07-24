@@ -63,7 +63,9 @@ class TsyaModelTrain:
     
     #def __init__(self, TrainProcessor, ValProcessor, epochs = epochs, device = device):
     def __init__(self, DataProcessor, epochs = epochs, device = device):
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+        #label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"] # all possible labels
+        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
+                      "[##]"]
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=True)
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased', # Use the 12-layer BERT model, with an uncased vocab.
@@ -81,6 +83,7 @@ class TsyaModelTrain:
         #self.train_dataloader, self.validation_dataloader = self.__dataset(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
         
         self.train_dataloader, self.validation_dataloader = self.__new_dataset(DataProcessor = DataProcessor)
+        print("Dataloader is created")
            
         # Total number of training steps is [number of batches] x [number of epochs].
         # (Note that this is not the same as the number of training samples).
@@ -105,9 +108,10 @@ class TsyaModelTrain:
             
         # Combine the training inputs into a TensorDataset.
 
-        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids)[:15000],
-                                torch.tensor(TrainProcessor.input_mask)[:15000],
-                                torch.tensor(TrainProcessor.label_ids)[:15000])
+        dataset = TensorDataset(torch.tensor(TrainProcessor.input_ids[:15000]),
+                                torch.tensor(TrainProcessor.input_mask[:15000]),
+                                torch.tensor(TrainProcessor.label_ids[:15000]))
+        
 
         val_dataset = TensorDataset(torch.tensor(ValProcessor.input_ids[:20000]),
                                     torch.tensor(ValProcessor.input_mask[:20000]),
@@ -120,12 +124,14 @@ class TsyaModelTrain:
     
     def __new_dataset(self, DataProcessor):
         
-        dataset = TensorDataset(torch.tensor(DataProcessor.input_ids)[:15000],
-                                torch.tensor(DataProcessor.input_mask)[:15000],
-                                torch.tensor(DataProcessor.label_ids)[:15000])
-        val_dataset = TensorDataset(torch.tensor(DataProcessor.input_ids)[15000:20000],
-                                torch.tensor(DataProcessor.input_mask)[15000:20000],
-                                torch.tensor(DataProcessor.label_ids)[15000:20000])
+        dataset = TensorDataset(torch.tensor(DataProcessor.input_ids[:15000]),
+                                torch.tensor(DataProcessor.input_mask[:15000]),
+                                torch.tensor(DataProcessor.label_ids[:15000]))
+
+        val_dataset = TensorDataset(torch.tensor(DataProcessor.input_ids[15000:20000]),
+                                torch.tensor(DataProcessor.input_mask[15000:20000]),
+                                torch.tensor(DataProcessor.label_ids[15000:20000]))
+
         train_dataloader = DataLoader(dataset, sampler = RandomSampler(dataset), batch_size = batch_size)
         validation_dataloader = DataLoader(val_dataset, sampler = SequentialSampler(val_dataset), batch_size = batch_size)
 
@@ -204,7 +210,7 @@ class TsyaModelTrain:
                                      token_type_ids=None, #b_segment,
                                      attention_mask=b_input_mask,
                                      labels=b_labels)
-
+                
                 total_train_loss += loss.item()
                 loss.backward()
 
