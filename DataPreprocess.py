@@ -33,7 +33,7 @@ class DataPreprocess:
         self.label_ids = []
         self.nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.file =  path_to_file
+        self.file = path_to_file
 
     def _process(self):
 
