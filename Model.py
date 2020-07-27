@@ -22,13 +22,13 @@ data_dir = "./new_data/"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 print(f"Device: {device}")
-weight_path = "Chkpt2.pth"
+weight_path = "Chkpt_test.pth"
 
 
 class GetIndices:
 
-    def __init__(self, ftype, data_path):
-        self.file_names = [data_path + 'input_ids_' + ftype + '.txt', data_path + 'input_mask_' + ftype + '.txt', data_path + 'label_ids_' + ftype + '.txt']
+    def __init__(self, ftype, data_dir):
+        self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
@@ -70,7 +70,7 @@ class GetIndices:
 class TsyaModel:
 
 
-    def __init__(self, weight_path, train_from_chk, device = device):
+    def __init__(self, weight_path = None, train_from_chk = False, device = device):
 
         self.weight_path = weight_path
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
@@ -118,13 +118,13 @@ class TsyaModel:
 
     def _new_dataset(self, data_processor):
 
-        dataset = TensorDataset(torch.tensor(data_processor.input_ids[:15000]),
-                                torch.tensor(data_processor.input_mask[:15000]),
-                                torch.tensor(data_processor.label_ids[:15000]))
+        dataset = TensorDataset(torch.tensor(data_processor.input_ids[:1000]),
+                                torch.tensor(data_processor.input_mask[:1000]),
+                                torch.tensor(data_processor.label_ids[:1000]))
 
-        val_dataset = TensorDataset(torch.tensor(data_processor.input_ids[15000:20000]),
-                                    torch.tensor(data_processor.input_mask[15000:20000]),
-                                    torch.tensor(data_processor.label_ids[15000:20000]))
+        val_dataset = TensorDataset(torch.tensor(data_processor.input_ids[1000:2000]),
+                                    torch.tensor(data_processor.input_mask[1000:2000]),
+                                    torch.tensor(data_processor.label_ids[1000:2000]))
 
         train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
         print("Train loader has been loaded")
@@ -309,10 +309,10 @@ class TsyaModel:
 
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
-            torch.save(self.model.state_dict(), self.weight_path)
+            torch.save(self.model.state_dict(), chkp_path)
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time() - total_t0)))
-        torch.save(self.model.state_dict(), self.weight_path)
+        torch.save(self.model.state_dict(), chkp_path)
 
 
 

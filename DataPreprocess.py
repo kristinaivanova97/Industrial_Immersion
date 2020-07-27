@@ -16,7 +16,6 @@ max_seq_length = 512
 data_dir = "./new_data/"
 path_to_data = "./dataset.txt"
 
-
 my_file = 'test.txt'
 class DataPreprocess:
     
