@@ -112,57 +112,57 @@ class TestPreprocess:
     #     return y_label
 
 
-class TsyaModel:
-
-    def __init__(self, weight_path = weight_path):
-        
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
-        self.m =  BertForTokenClassification.from_pretrained(
-                        'bert-base-multilingual-cased',
-                        num_labels = len(label_list),
-                        output_attentions = False,
-                        output_hidden_states = False,
-                    )
-        self.m.load_state_dict(torch.load(weight_path))
-        self.m.to(device)
-        
-    def predict_batch(self, prediction_dataloader, nopad):
-        
-        self.m.eval()
-        predicts_full = []
-        step = 0
-        for batch in prediction_dataloader:
-            batch = tuple(t.to(device) for t in batch)
-            b_input_ids, b_input_mask = batch
-            with torch.no_grad():
-
-                output = self.m(b_input_ids, token_type_ids=None,
-                              attention_mask=b_input_mask)
-            logits = output[0].detach().cpu().numpy()
-            prediction = np.argmax(logits, axis=2)
-            predicts = []
-            for i in range(len(b_input_ids)):
-
-                predicts.append(prediction[i, :nopad[step]])
-                step+=1
-            predicts_full.append(predicts)
-            
-        return predicts_full
-    
-    def predict_sentence(self, input_ids, attention_masks, nopad):
-        
-        self.m.eval()
-        predicts = []
-        input_ids = input_ids.to(device)
-        input_mask = attention_masks.to(device)
-        
-        with torch.no_grad():
-                output = self.m(input_ids, token_type_ids=None,
-                              attention_mask=input_mask)
-        logits = output[0].detach().cpu().numpy()
-        prediction = np.argmax(logits, axis=2)
-        predicts.append(prediction[0, :nopad[0]])
-        return predicts
+# class TsyaModel:
+#
+#     def __init__(self, weight_path = weight_path):
+#
+#         label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
+#         self.m =  BertForTokenClassification.from_pretrained(
+#                         'bert-base-multilingual-cased',
+#                         num_labels = len(label_list),
+#                         output_attentions = False,
+#                         output_hidden_states = False,
+#                     )
+#         self.m.load_state_dict(torch.load(weight_path))
+#         self.m.to(device)
+#
+#     def predict_batch(self, prediction_dataloader, nopad):
+#
+#         self.m.eval()
+#         predicts_full = []
+#         step = 0
+#         for batch in prediction_dataloader:
+#             batch = tuple(t.to(device) for t in batch)
+#             b_input_ids, b_input_mask = batch
+#             with torch.no_grad():
+#
+#                 output = self.m(b_input_ids, token_type_ids=None,
+#                               attention_mask=b_input_mask)
+#             logits = output[0].detach().cpu().numpy()
+#             prediction = np.argmax(logits, axis=2)
+#             predicts = []
+#             for i in range(len(b_input_ids)):
+#
+#                 predicts.append(prediction[i, :nopad[step]])
+#                 step+=1
+#             predicts_full.append(predicts)
+#
+#         return predicts_full
+#
+#     def predict_sentence(self, input_ids, attention_masks, nopad):
+#
+#         self.m.eval()
+#         predicts = []
+#         input_ids = input_ids.to(device)
+#         input_mask = attention_masks.to(device)
+#
+#         with torch.no_grad():
+#                 output = self.m(input_ids, token_type_ids=None,
+#                               attention_mask=input_mask)
+#         logits = output[0].detach().cpu().numpy()
+#         prediction = np.argmax(logits, axis=2)
+#         predicts.append(prediction[0, :nopad[0]])
+#         return predicts
 
 
 class ProcessOutput:
