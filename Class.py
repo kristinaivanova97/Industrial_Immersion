@@ -168,113 +168,105 @@ class TsyaModel:
 
 
 class ProcessOutput:
+
+def __init__(self):
     
-    def __init__(self):
-        
-        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.tokens = []
-        self.text = []
-        self.fine_text = ''
-        self.tags = []
-        self.preds = []
-        self.correct_text = ''
+    self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
-    def print_results_in_file(self, file_name):
-        print("Tokens = ", self.tokens, file=file_name)
-        print("Prediction = ", self.preds, file=file_name)
-        print("Initial Tags = ", self.tags, file=file_name)
-        print("Fine text = {} \n".format(self.fine_text), file=file_name)
-        print("Correct text = {} \n".format(self.correct_text), file=file_name)
-        print(file=file_name)
+def print_results_in_file(self, file_name):
+    print("Tokens = ", tokens, file=file_name)
+    print("Prediction = ", preds, file=file_name)
+    print("Initial text = {} \n".format(initial_text), file=file_name)
+    print("Correct text = {} \n".format(correct_text), file=file_name)
+    print(file=file_name)
 
-    def print_results(self):
-        print("Tokens = ", self.tokens)
-        print("Prediction = ", self.preds)
-        print("Initial Tags = ", self.tags)
-        print("Fine text = {} \n".format(self.fine_text))
-        print("Correct text = {} \n".format(self.correct_text))
+def print_results(self):
+    print("Tokens = ", tokens)
+    print("Prediction = ", preds)
+    print("Initial text = {} \n".format(initial_text))
+    print("Correct text = {} \n".format(correct_text))
 
-    def process(self, predictions, input_ids, nopad, data_tags, text_data):
-
-        # with open('results.txt', 'w') as file_name:
-        step = 0
-        for i,predict in enumerate(predictions):
-            for j, pred in enumerate(predict):
-                self.tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
-                self.text = self._tokenizer.decode(input_ids[step, :nopad[step]])
-                # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
-                self.fine_text = text_data[step]
-                self.tags =  np.array(data_tags[step][:nopad[step]])
-                self.preds = np.array(pred)
-                self.correct_text = self.fine_text
-                all_incorrect = []
-                message = ["Correct"]
-
-                if self._check_coincide() > 0:
+#def process(self, predictions, input_ids, nopad, data_tags, text_data):
+def process(self, predictions, input_ids, nopad, text_data):
+    # with open('results.txt', 'w') as file_name:
+    tokens = []
+    text = []
+    fine_text = ''
+    preds = []
+    correct_text_full = ''
+    step = 0
+    for i,predict in enumerate(predictions):
+        for j, pred in enumerate(predict):
+            tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
+            text = self._tokenizer.decode(input_ids[step, :nopad[step]])
+            # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
+            initial_text = text_data[step]
+            #tags =  np.array(data_tags[step][:nopad[step]])
+            preds = np.array(pred)
+            correct_text = initial_text
+            incorrect_words = []
+            incorrect_words_tisya = []
+            incorrect_words_tsya = []
+            incorrect_words_n = []
+            incorrect_words_nn = []
+            message = ["Correct"]
+            
+            replace_tsya = np.where(preds==7)[0].tolist()
+            replace_tisya = np.where(preds==6)[0].tolist()
+            replace_n = np.where(preds==5)[0].tolist()
+            replace_nn = np.where(preds==4)[0].tolist()
+            
+            list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
+            list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
+            
+            for j,replace_list in enumerate(list_of_replace_indeces):
+                
+                if len(replace_list) > 0:
                     message = ["Incorrect"]
-                    incorrect_words_tisya = []
-                    incorrect_words_tsya = []
+                    for i in range(len(replace_list))
+                        word = tokens[replace_list[i]]
+                        k = 1
+                        while preds[replace_list[i] + k] == ["##"]:
+                            index = replace_list[i] + k
+                            word += tokens[index][2:]
+                            k+=1
+                        incorrect_words.append(word)
+                        list_of_words_with_mistake[j].append(word)
+           
+            for word in incorrect_words_tisya:
+                word_correct = word.replace('ться', 'тся')
+                correct_text = correct_text.replace(word, word_correct)
 
-                    array_of_tokens_with_tisya = np.where(self.tags==4)[0].tolist()
-                    array_of_tokens_with_tsya = np.where(self.tags==5)[0].tolist()
+            for word in incorrect_words_tsya:
+                word_correct = word.replace('тся', 'ться')
+                correct_text = correct_text.replace(word, word_correct)
+                
+            for word in incorrect_words_n:
+                word_correct = word.replace('n', 'nn')
+                correct_text = correct_text.replace(word, word_correct)
+                
+            for word in incorrect_words_nn:
+                word_correct = word.replace('nn', 'n')
+                correct_text = correct_text.replace(word, word_correct)
+                
+            self.print_results()
 
+            step+=1
+    correct_text_full += correct_text
 
-                    if len(array_of_tokens_with_tisya) > 0:
-                        array_of_word_indexes = [array_of_tokens_with_tisya[0]]
-                        word = self.tokens[array_of_tokens_with_tisya[0]]
-                        for index in array_of_tokens_with_tisya[1:]:
-                            if '##' in self.tokens[index]:
-                                array_of_word_indexes.append(index)
-                                word += self.tokens[index][2:]
-                            else:
-                                if 5 in self.preds[array_of_word_indexes[0]:array_of_word_indexes[-1]+1]:
-                                    incorrect_words_tisya.append(word)
-                                    all_incorrect.append(word)
-                                word = self.tokens[index]
-                        if 5 in self.preds[array_of_word_indexes[0]:array_of_word_indexes[-1] + 1]:
-                            incorrect_words_tisya.append(word)
-                            all_incorrect.append(word)
-
-                    if len(array_of_tokens_with_tsya)>0:
-                        array_of_word_indexes = [array_of_tokens_with_tsya[0]]
-                        word = self.tokens[array_of_tokens_with_tsya[0]]
-                        for index in array_of_tokens_with_tsya[1:]:
-                            if '##' in self.tokens[index]:
-                                array_of_word_indexes.append(index)
-                                word += self.tokens[index][2:]
-                            else:
-                                if 4 in self.preds[array_of_word_indexes[0]:array_of_word_indexes[-1]+1]:
-                                    incorrect_words_tsya.append(word)
-                                    all_incorrect.append(word)
-                                word = self.tokens[index]
-
-                        if 4 in self.preds[array_of_word_indexes[0]:array_of_word_indexes[-1]+1]:
-                            incorrect_words_tsya.append(word)
-                            all_incorrect.append(word)
-
-                    for word in incorrect_words_tisya:
-                        word_correct = word.replace('ться', 'тся')
-                        self.correct_text = self.correct_text.replace(word, word_correct)
-
-                    for word in incorrect_words_tsya:
-                        word_correct = word.replace('тся', 'ться')
-                        self.correct_text = self.correct_text.replace(word, word_correct)
-
-                self.print_results()
-
-                step+=1
-        return all_incorrect, message, self.correct_text
-
-    def _check_coincide(self):
-        
-        coincide = np.sum(self.tags[(self.tags==4) | (self.tags==5)] == self.preds[(self.tags==4) | (self.tags==5)])
-        #print("Coincide in {} positions with tsya/tsiya ".format(coincide))
-        if coincide == len(self.tags[(self.tags==4) | (self.tags==5)]):
-            if (len(self.tags[(self.tags==4) | (self.tags==5)]) == 0):
-                print("Sentence does not contain words with tsya/tsiya")
-            else:
-                print("Predicted and initial sentences coincide")
-            return 0
+    return incorrect_words, message, correct_text_full
+'''
+def _check_coincide(self):
+    
+    coincide = np.sum(self.tags[(self.tags==4) | (self.tags==5)] == self.preds[(self.tags==4) | (self.tags==5)])
+    #print("Coincide in {} positions with tsya/tsiya ".format(coincide))
+    if coincide == len(self.tags[(self.tags==4) | (self.tags==5)]):
+        if (len(self.tags[(self.tags==4) | (self.tags==5)]) == 0):
+            print("Sentence does not contain words with tsya/tsiya")
         else:
-            print("Sentence contain a mistake!")
-            return 1
+            print("Predicted and initial sentences coincide")
+        return 0
+    else:
+        print("Sentence contain a mistake!")
+        return 1
+'''
