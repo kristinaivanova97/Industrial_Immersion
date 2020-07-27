@@ -52,7 +52,7 @@ class GetIndices:
                 features[i].append(list(map(int, list_of_lists[j])))
 
 
-    def getlabels(self, filename):
+    def get_labels(self, filename):
 
         # *** not nessesary as wont't be used later ***
         my_file = open(filename, 'r') # 'Labels.txt'
