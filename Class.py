@@ -16,35 +16,33 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class TestPreprocess:
     
     def __init__(self):
-        
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
-        
+
+        self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya",
+                           "REPLACE_tsya",
+                           "[##]"]
         self.label_map = {}
-        for (i, label) in enumerate(label_list):
+        for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
-            
-        self._input_ids = []
-        self._attention_masks = []
-        self._nopad = []
+
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         
     def process(self, text, max_seq_length = max_seq_length, batch_size = batch_size):
 
         input_ids_full = []
         attention_masks = []
-        label_ids_full = []
-        
-        y_label = self.gettags(text)
+        # label_ids_full = []
+        nopad = []
+
+        # y_label = self.gettags(text)
         for i, sentence in enumerate(text):
             tokens = []
             labels = []
             for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', sentence, re.UNICODE)):
                 token = self.tokenizer.tokenize(word)
                 tokens.extend(token)
-                label_1 = y_label[i][j]
-                for m in range(len(token)):
-                    labels.append(label_1)
-
+                # label_1 = y_label[i][j]
+                # for m in range(len(token)):
+                #     labels.append(label_1)
 
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
@@ -58,7 +56,7 @@ class TestPreprocess:
                 label_ids.append(self.label_map[labels[i]])
                     
             ntokens.append("[SEP]")
-            self._nopad.append(len(ntokens))
+            nopad.append(len(ntokens))
             label_ids.append(self.label_map["[SEP]"])
             input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
             input_mask = [1] * len(input_ids)
@@ -72,46 +70,46 @@ class TestPreprocess:
             assert len(input_mask) == max_seq_length
             input_ids_full.append(input_ids)
             attention_masks.append(input_mask)
-            label_ids_full.append(label_ids)
+            # label_ids_full.append(label_ids)
             
-        self._input_ids = torch.tensor(input_ids_full)
-        self._attention_masks = torch.tensor(attention_masks)
-        prediction_data = TensorDataset(self._input_ids, self._attention_masks)
+        input_ids = torch.tensor(input_ids_full)
+        attention_masks = torch.tensor(attention_masks)
+        prediction_data = TensorDataset(input_ids, attention_masks)
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
-        return self._input_ids, self._attention_masks, prediction_dataloader, self._nopad, label_ids_full
+        return input_ids, attention_masks, prediction_dataloader, nopad
     
-    def gettags(self, text):
-
-        tsya_search = re.compile(r'тся\b')
-        tsiya_search = re.compile(r'ться\b')
-        dicty = {}
-        i = 0
-        for raw in tqdm(text):
-
-            m = tsya_search.findall(raw)
-            m2 = tsiya_search.findall(raw)
-
-            for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', raw, re.UNICODE)):
-
-                m = tsya_search.search(word)
-                m2 = tsiya_search.search(word)
-                dicty.setdefault(i, {})
-                if m is not None:
-                    dicty[i][j] = m.group() # "тся" label
-                elif m2 is not None:
-                    dicty[i][j] = m2.group() # "ться" label
-                else:
-                    dicty[i][j] = "O"
-            i+=1
-
-        y_label = []
-        for i in dicty.keys():
-            raw = []
-            for j in range(len(dicty[i])):
-                raw.append(dicty[i][j])
-            y_label.append(raw)
-        return y_label
+    # def gettags(self, text):
+    #
+    #     tsya_search = re.compile(r'тся\b')
+    #     tsiya_search = re.compile(r'ться\b')
+    #     dicty = {}
+    #     i = 0
+    #     for raw in tqdm(text):
+    #
+    #         m = tsya_search.findall(raw)
+    #         m2 = tsiya_search.findall(raw)
+    #
+    #         for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', raw, re.UNICODE)):
+    #
+    #             m = tsya_search.search(word)
+    #             m2 = tsiya_search.search(word)
+    #             dicty.setdefault(i, {})
+    #             if m is not None:
+    #                 dicty[i][j] = m.group() # "тся" label
+    #             elif m2 is not None:
+    #                 dicty[i][j] = m2.group() # "ться" label
+    #             else:
+    #                 dicty[i][j] = "O"
+    #         i+=1
+    #
+    #     y_label = []
+    #     for i in dicty.keys():
+    #         raw = []
+    #         for j in range(len(dicty[i])):
+    #             raw.append(dicty[i][j])
+    #         y_label.append(raw)
+    #     return y_label
 
 
 class TsyaModel:
@@ -194,7 +192,7 @@ class ProcessOutput:
         print("Fine text = {} \n".format(self.fine_text))
         print("Correct text = {} \n".format(self.correct_text))
 
-    def process(self, predictions, input_ids, nopad, data_tags, text_data):
+    def process(self, predictions, input_ids, nopad, text_data):
 
         # with open('results.txt', 'w') as file_name:
         step = 0
@@ -204,7 +202,7 @@ class ProcessOutput:
                 self.text = self._tokenizer.decode(input_ids[step, :nopad[step]])
                 # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
                 self.fine_text = text_data[step]
-                self.tags =  np.array(data_tags[step][:nopad[step]])
+                # self.tags =  np.array(data_tags[step][:nopad[step]])
                 self.preds = np.array(pred)
                 self.correct_text = self.fine_text
                 all_incorrect = []

@@ -10,14 +10,17 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 import time
-from Class import TestPreprocess, TsyaModel, ProcessOutput
+from Class import TestPreprocess, ProcessOutput
+from Model import TsyaModel
 import argparse
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
     
 def main(path_file):
-    
+
+    chkp_path = "Chkpt2.pth"
+
     data_processor = TestPreprocess()
     
     if path_file:
@@ -28,25 +31,25 @@ def main(path_file):
     else:
         #TODO убрать комменты и заглушки
 
-        # num_of_sentences = int(input("Число предложений: "))
-        num_of_sentences = 1
+        num_of_sentences = int(input("Число предложений: "))
+        # num_of_sentences = 1
         text_data = []
         for i in range(num_of_sentences):
-            # text = input("Предложение: ")
-            text = "Повесится можно"
+            text = input("Предложение: ")
+            # text = "Повесится можно"
             text_data.append(text)
         
     start_time = time.time()
-    input_ids, mask_ids, prediction_dataloader, nopad, label_ids = data_processor.process(text=text_data)
+    input_ids, mask_ids, prediction_dataloader, nopad = data_processor.process(text=text_data)
 
-    model = TsyaModel()
+    model = TsyaModel(chkp_path, True)
     
     #if len(text_data) == 1:
     #    predicts = model.predict_sentence(input_ids, mask_ids, nopad)
     
-    predicts = model.predict_batch(prediction_dataloader, nopad)
+    predicts = model.predict(prediction_dataloader, nopad)
     output = ProcessOutput()
-    incorrect, message, correct_text = output.process(predicts, input_ids, nopad, label_ids, text_data)
+    incorrect, message, correct_text = output.process(predicts, input_ids, nopad, text_data)
     print('Elapsed time: ', time.time() - start_time)
 
 if __name__ == '__main__':

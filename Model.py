@@ -75,9 +75,9 @@ class TsyaModel:
         self.weight_path = weight_path
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
                       "[##]"]
-        # self.label_map = {}
-        # for (i, label) in enumerate(self.label_list):
-        #     self.label_map[label] = i
+        self.label_map = {}
+        for (i, label) in enumerate(self.label_list):
+            self.label_map[label] = i
 
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased',
@@ -150,26 +150,11 @@ class TsyaModel:
 
 
     def train(self, chkp_path, data_processor):
-
+        if not chkp_path:
+            chkp_path = self.weight_path
         self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
         print("Dataloader is created")
 
-        # TrainProcessor = GetIndices(ftype='train', data_path=data_path)
-        # ValProcessor = GetIndices(ftype='val', data_path=data_path)
-        # TrainProcessor.upload()
-        # ValProcessor.upload()
-        #
-        # assert len(TrainProcessor.input_ids[0]) == max_seq_length
-        # assert len(TrainProcessor.input_mask[0]) == max_seq_length
-        # assert len(TrainProcessor.label_ids[0]) == max_seq_length
-        #
-        # print("Sequense len = ", len(TrainProcessor.input_ids[0]))
-        # print("Num of sequences = ", len(TrainProcessor.input_ids))
-        # print("Num of val sequences = ", len(ValProcessor.input_ids))
-        # print("files with input ids, masks, segment ids and label ids are loaded succesfully")
-        #
-        # self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor,
-        #                                                                    ValProcessor=ValProcessor)
         total_steps = len(self.train_dataloader) * epochs
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
@@ -309,10 +294,11 @@ class TsyaModel:
 
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
-            torch.save(self.model.state_dict(), self.weight_path)
+
+            torch.save(self.model.state_dict(), chkp_path)
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time() - total_t0)))
-        torch.save(self.model.state_dict(), self.weight_path)
+        torch.save(self.model.state_dict(), chkp_path)
 
 
 
