@@ -16,7 +16,7 @@ import argparse
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
     
-def main(path_to_file):
+def main(path_file):
     
     data_processor = TestPreprocess()
     
@@ -26,6 +26,8 @@ def main(path_to_file):
             for line in f:
                 text_data.append(line.split('\n')[0])
     else:
+        #TODO убрать комменты и заглушки
+
         # num_of_sentences = int(input("Число предложений: "))
         num_of_sentences = 1
         text_data = []

@@ -1,6 +1,9 @@
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
+import numpy as np
+import pandas as pd
+import re
 from transformers import BertTokenizer
+from tqdm import tqdm
+import math
 
 path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
 path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
@@ -14,6 +17,7 @@ data_dir = "./new_data/"
 path_to_data = "./dataset.txt"
 
 
+my_file = 'test.txt'
 class DataPreprocess:
     
     def __init__(self, path_to_file):
@@ -30,7 +34,7 @@ class DataPreprocess:
         self.nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.file =  path_to_file
-        
+
     def _process(self):
 
         with open(self.file, 'r', encoding='utf-8') as file:
