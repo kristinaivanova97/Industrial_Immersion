@@ -27,36 +27,80 @@ class DataPreprocess:
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
             
-        self.input_ids = []
-        self.attention_masks = []
-        self.label_ids = []
-        self.nopad = []
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.file = path_to_file
-
+        self.file =  path_to_file
+        
     def _process(self):
+        
+        input_ids_full = []
+        attention_masks_full = []
+        label_ids_full = []
+        nopad_full = []
 
         with open(self.file, 'r', encoding='utf-8') as file:
             lines = file.readlines()
             list_of_words = []
             list_of_labeles = []
 
-            for line in lines:
+            for line in tqdm(lines):
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 if len(line_list) > 1:
                     list_of_words.append(line_list[0])
                     list_of_labeles.append(line_list[1])
                 else:
-                    input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
-                    self.input_ids.append(input_ids)
-                    self.attention_masks.append(input_mask)
-                    self.label_ids.append(label_ids)
-                    self.nopad.append(nopad)
+
+                    input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
+                    #input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
+                    input_ids_full.append(input_ids)
+                    attention_masks_full.append(input_mask)
+                    label_ids_full.append(label_ids)
+                    nopad_full.append(nopad)
                     list_of_words = []
                     list_of_labeles = []
+        return input_ids_full, attention_masks_full, label_ids_full, nopad_full
 
     def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512):
+
+        tokens = []
+        labels = []
+        nopad = []
+        for i, word in enumerate(sentence):
+            token = self.tokenizer.tokenize(word)
+            tokens.extend(token)
+            word_label = sentence_labels[i]
+            for m in range(len(token)):
+                labels.append(word_label)
+
+        if len(tokens) >= max_seq_length - 1:
+            tokens = tokens[0:(max_seq_length - 2)]
+            labels = labels[0:(max_seq_length - 2)]
+        ntokens = []
+        label_ids = []
+        ntokens.append("[CLS]")
+        label_ids.append(self.label_map["[CLS]"])
+        for i, token in enumerate(tokens):
+            ntokens.append(token)
+            label_ids.append(self.label_map[labels[i]])
+
+        ntokens.append("[SEP]")
+        nopad.append(len(ntokens))
+        label_ids.append(self.label_map["[SEP]"])
+        input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
+        input_mask = [1] * len(input_ids)
+
+        while len(input_ids) < max_seq_length:
+            input_ids.append(0)
+            input_mask.append(0)
+            label_ids.append(0)
+            ntokens.append("[Padding]")
+        assert len(input_ids) == max_seq_length
+        assert len(input_mask) == max_seq_length
+        assert len(label_ids) == max_seq_length
+
+        return input_ids, input_mask, label_ids, nopad
+    
+    def convert_single_example_with_part_of_word(self, sentence, sentence_labels, max_seq_length = 512):
 
         tokens = []
         labels = []
@@ -109,10 +153,10 @@ class DataPreprocess:
         my_file.close()
         
     def save_indices(self, ftype, data_dir):
-        self._process()
+        input_ids, attention_masks, label_ids, _ = self._process()
         # save to 3 files
         file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
-        features = [self.input_ids, self.attention_masks, self.label_ids]
+        features = [input_ids, attention_masks, label_ids]
 
         for j in range(len(file_names)):
             my_file = open (file_names[j], 'w', encoding='utf-8')
@@ -128,11 +172,11 @@ def main():
     data_processor = DataPreprocess(path_to_file=path_to_data)
 
     data_processor.save_indices(ftype='data', data_dir = data_dir)
+    #data_processor.save_indices(ftype='full_labels', data_dir = data_dir)
 
 
 if __name__ == "__main__":
     main()
-
 
 
 """
