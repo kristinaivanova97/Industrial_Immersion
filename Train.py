@@ -35,8 +35,8 @@ def main():
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
     #model = TsyaModel(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
-    model = TsyaModel(data_processor)
-    model.train()
+    model = TsyaModel(weight_path, True)
+    model.train(weight_path, data_processor)
 
 
 if __name__ == "__main__":

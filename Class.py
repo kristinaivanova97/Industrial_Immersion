@@ -7,7 +7,6 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
-weight_path = "Chkpt.pth"
 batch_size = 16
 max_seq_length = 512
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -276,3 +275,7 @@ class ProcessOutput:
         else:
             print("Sentence contain a mistake!")
             return 1
+
+
+# def permutation_dataset(volume_of_dataset, data_path, output_path):
+    

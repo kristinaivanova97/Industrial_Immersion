@@ -14,7 +14,6 @@ label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "RE
 tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 max_seq_length = 512
 data_dir = "./new_data/"
-path_to_data = "./dataset.txt"
 
 
 my_file = 'test.txt'
@@ -99,16 +98,16 @@ class DataPreprocess:
 
         return input_ids, input_mask, label_ids, nopad
 
-    def save_labels(self, path):
- 
-        my_file = open(path, 'w', encoding='utf-8')
-        for raw in tqdm(self.y_label):
-            for elem in raw:
-                my_file.write(str(elem))
-                my_file.write(' ')
-            my_file.write('\n')
-        my_file.close()
-        
+    # def save_labels(self, path):
+    #
+    #     my_file = open(path, 'w', encoding='utf-8')
+    #     for raw in tqdm(self.y_label):
+    #         for elem in raw:
+    #             my_file.write(str(elem))
+    #             my_file.write(' ')
+    #         my_file.write('\n')
+    #     my_file.close()
+
     def save_indices(self, ftype, data_dir):
         self._process()
         # save to 3 files
@@ -126,6 +125,9 @@ class DataPreprocess:
 
 
 def main():
+    path_to_train_data = "./dataset.txt"
+    path_to_train_data = "./dataset.txt"
+    data_processor = DataPreprocess(path_to_file=path_to_data)
     data_processor = DataPreprocess(path_to_file=path_to_data)
 
     data_processor.save_indices(ftype='data', data_dir = data_dir)

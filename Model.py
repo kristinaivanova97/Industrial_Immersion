@@ -98,41 +98,6 @@ class TsyaModel:
         self.model.to(device)
         self.seed_val = 42
 
-
-    def _dataset(self, train_processor, val_processor):
-
-        # Combine the training inputs into a TensorDataset.
-
-        dataset = TensorDataset(torch.tensor(train_processor.input_ids[:15000]),
-                                torch.tensor(train_processor.input_mask[:15000]),
-                                torch.tensor(train_processor.label_ids[:15000]))
-
-        val_dataset = TensorDataset(torch.tensor(val_processor.input_ids[:20000]),
-                                    torch.tensor(val_processor.input_mask[:20000]),
-                                    torch.tensor(val_processor.label_ids[:20000]))
-
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
-
-        return train_dataloader, validation_dataloader
-
-    def _new_dataset(self, data_processor):
-
-        dataset = TensorDataset(torch.tensor(data_processor.input_ids[:15000]),
-                                torch.tensor(data_processor.input_mask[:15000]),
-                                torch.tensor(data_processor.label_ids[:15000]))
-
-        val_dataset = TensorDataset(torch.tensor(data_processor.input_ids[15000:20000]),
-                                    torch.tensor(data_processor.input_mask[15000:20000]),
-                                    torch.tensor(data_processor.label_ids[15000:20000]))
-
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        print("Train loader has been loaded")
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
-
-        return train_dataloader, validation_dataloader
-
-
     def format_time(self, elapsed):
 
         '''
@@ -152,7 +117,7 @@ class TsyaModel:
     def train(self, chkp_path, data_processor):
         if not chkp_path:
             chkp_path = self.weight_path
-        self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
+        self.train_dataloader, self.validation_dataloader = self._dataset(data_processor=data_processor)
         print("Dataloader is created")
 
         total_steps = len(self.train_dataloader) * epochs
