@@ -13,13 +13,12 @@ print(f"Device: {device}")
 weight_path = "Chkpt2.pth"
     
 def check_contain_tsya_or_nn(data):
-    
     data_with_tsya_or_nn = []
     tsya_search = re.compile(r'тся\b')
     tsiya_search = re.compile(r'ться\b')
-    n_search = re.compile(r'\wн*\w\b')
-    nn_search = re.compile(r'\wнн*\w\b')
-    
+    n_search = re.compile(r'\wн\w*\b') # the words, which contain "н" in the middle or in the end of word
+    nn_search = re.compile(r'\wнн\w*\b')
+
     for sentence in data:
         
         places_with_tsya = tsya_search.search(sentence)
