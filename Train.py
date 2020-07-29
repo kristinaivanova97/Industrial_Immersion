@@ -1,31 +1,36 @@
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-from Model import GetIndices, TsyaModel
+from Train_Classes import GetIndices, TsyaModel
 
-batch_size = 1
-epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
 data_dir = "./new_data/"
-chkp_path = "Chkpt_test.pth"
-# input indices are created in another file (DataPreprocess.py) - essential for Bert model
+chkp_path = "Chkpt_part_of_word.pth"
 
-def main():
+'''
+DataProcessor = GetIndices(ftype = 'data', data_dir = data_dir)
+DataProcessor.upload()
+assert len(DataProcessor.input_ids[0]) == max_seq_length
+assert len(DataProcessor.input_mask[0]) == max_seq_length
+assert len(DataProcessor.label_ids[0]) == max_seq_length
 
-    data_processor = GetIndices(ftype = 'data')
-    data_processor.upload()
-    assert len(data_processor.input_ids[0]) == max_seq_length
-    assert len(data_processor.input_mask[0]) == max_seq_length
-    assert len(data_processor.label_ids[0]) == max_seq_length
+print("Sequense len = ", len(DataProcessor.input_ids[0]))
+print("Num of sequences = ", len(DataProcessor.input_ids))
+print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+'''
 
-    print("Sequense len = ", len(data_processor.input_ids[0]))
-    print("Num of sequences = ", len(data_processor.input_ids))
-    print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+TrainProcessor = GetIndices(ftype = 'train', data_dir = data_dir)
+ValProcessor = GetIndices(ftype = 'val', data_dir = data_dir)
+TrainProcessor.upload()
+ValProcessor.upload()
 
-    #model = TsyaModel(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
-    model = TsyaModel()
-    model.train(chkp_path, data_processor)
+assert len(TrainProcessor.input_ids[0]) == max_seq_length
+assert len(TrainProcessor.input_mask[0]) == max_seq_length
+assert len(TrainProcessor.label_ids[0]) == max_seq_length
 
+print("Sequense len = ", len(TrainProcessor.input_ids[0]))
+print("Num of sequences = ", len(TrainProcessor.input_ids))
+print("Num of val sequences = ", len(ValProcessor.input_ids))
+print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-if __name__ == "__main__":
-    main()
-
+#model = TsyaModelTrain(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
+model = TsyaModel()
+print("Initialisation is fininshed")
+model.train(chkp_path, DataProcessor)

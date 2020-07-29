@@ -10,13 +10,10 @@ path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
 path_to_train_labels = 'Labels.txt'
 path_to_val_labels = 'Val_labels.txt'
 
-label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 max_seq_length = 512
 data_dir = "./new_data/"
 path_to_data = "./dataset.txt"
 
-my_file = 'test.txt'
 class DataPreprocess:
     
     def __init__(self, path_to_file):
@@ -29,19 +26,37 @@ class DataPreprocess:
             
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.file =  path_to_file
+
+
+    def generate_batch(self, dataset, number=5000):
+        batch = []
+        for sample in dataset:
+            batch.append(sample)
+
+            if len(batch) == number:
+                yield batch
+                batch = []
+
+
+    def write_to_file(self, path):
+        datast_gen = self.generate_batch()
+
+        for batch in datast_gen:
+            with open(path, "a") as inf:
+                inf.writelines(batch)
+    '''
+    def _process_batch(self):
         
-    def _process(self):
+        input_ids_batch = []
+        attention_masks_batch = []
+        label_ids_batch = []
+        nopad_batch = []
         
-        input_ids_full = []
-        attention_masks_full = []
-        label_ids_full = []
-        nopad_full = []
 
         with open(self.file, 'r', encoding='utf-8') as file:
             lines = file.readlines()
             list_of_words = []
             list_of_labeles = []
-
             for line in tqdm(lines):
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -50,15 +65,52 @@ class DataPreprocess:
                     list_of_labeles.append(line_list[1])
                 else:
 
-                    input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
-                    #input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
+                    #input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
+                    input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
+                    input_ids_batch.append(input_ids)
+                    attention_masks_batch.append(input_mask)
+                    label_ids_batch.append(label_ids)
+                    nopad_batch.append(nopad)
+                    list_of_words = []
+                    list_of_labeles = []
+                    if len(input_ids_batch) == 5000:
+                        yield input_ids_batch, attention_masks_batch, label_ids_batch, nopad_batch
+                        
+                        input_ids_batch = []
+                        attention_masks_batch = []
+                        label_ids_batch = []
+                        nopad_batch = []
+    '''
+    def _process(self):
+
+        input_ids_full = []
+        attention_masks_full = []
+        label_ids_full = []
+        nopad_full = []
+
+
+        with open(self.file, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            list_of_words = []
+            list_of_labeles = []
+            for line in tqdm(lines):
+                stripped_line = line.strip()
+                line_list = stripped_line.split()
+                if len(line_list) > 1:
+                    list_of_words.append(line_list[0])
+                    list_of_labeles.append(line_list[1])
+                else:
+
+                    #input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
+                    input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
                     input_ids_full.append(input_ids)
                     attention_masks_full.append(input_mask)
                     label_ids_full.append(label_ids)
                     nopad_full.append(nopad)
                     list_of_words = []
                     list_of_labeles = []
-        return input_ids_full, attention_masks_full, label_ids_full, nopad_full
+        return input_ids_full, attention_masks_full, label_ids_full
+
 
     def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512):
 
@@ -153,11 +205,14 @@ class DataPreprocess:
         my_file.close()
         
     def save_indices(self, ftype, data_dir):
-        input_ids, attention_masks, label_ids, _ = self._process()
+        
+        #generator = self._process_batch()
+        
+        input_ids, attention_masks, label_ids = self._process()
         # save to 3 files
         file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
         features = [input_ids, attention_masks, label_ids]
-
+                      
         for j in range(len(file_names)):
             my_file = open (file_names[j], 'w', encoding='utf-8')
             for raw in features[j]:
@@ -166,17 +221,43 @@ class DataPreprocess:
                     my_file.write(' ')
                 my_file.write('\n')
             my_file.close()
+    
+    
+    def save_indices_hdf(self, data_dir, train_size = 150000):
 
+        input_ids, attention_masks, label_ids = self._process()
+        input_ids = np.array(input_ids)
+        attention_masks = np.array(input_mask)
+        label_ids = np.array(label_ids)
+        val_size = train_size:8
+        
+        with h5py.File(data_dir + 'ids_all_train.hdf5', 'w') as f:
+            dset_input_ids = f.create_dataset("input_ids", (train_size, 512), dtype='i8')
+            dset_input_ids[:,:] = input_ids[:train_size, :]
+            dset_input_mask = f.create_dataset("input_mask", (train_size, 512), dtype='i1')
+            dset_input_mask[:,:] = input_mask[:train_size, :]
+            dset_label_ids = f.create_dataset("label_ids", (train_size, 512), dtype='i1')
+            dset_label_ids[:,:] = label_ids[:train_size, :]
+            f.close()
+        with h5py.File(data_dir + 'ids_all_val.hdf5', 'w') as f:
+            dset_input_ids = f.create_dataset("input_ids", (val_size, 512), dtype='i8')
+            dset_input_ids[:,:] = input_ids[train_size:train_size+val_size, :]
+            dset_input_mask = f.create_dataset("input_mask", (val_size, 512), dtype='i1')
+            dset_input_mask[:,:] = input_mask[train_size:train_size+val_size, :]
+            dset_label_ids = f.create_dataset("label_ids", (val_size, 512), dtype='i1')
+            dset_label_ids[:,:] = label_ids[train_size:train_size+val_size, :]
+            f.close()
 
 def main():
     data_processor = DataPreprocess(path_to_file=path_to_data)
 
-    data_processor.save_indices(ftype='data', data_dir = data_dir)
+    #data_processor.save_indices(ftype='data', data_dir = data_dir)
     #data_processor.save_indices(ftype='full_labels', data_dir = data_dir)
-
+    data_processor.save_indices_hdf(data_dir = data_dir)
 
 if __name__ == "__main__":
     main()
+
 
 
 """

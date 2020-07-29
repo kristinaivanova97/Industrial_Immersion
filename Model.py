@@ -29,9 +29,11 @@ class GetIndices:
 
     def __init__(self, ftype, data_dir):
         self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
+        self.file_hdf = data_dir + 'ids_all_' + ftype + '.hdf5'
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
+            
 
     def upload(self):
 
@@ -40,7 +42,7 @@ class GetIndices:
             my_file = open(self.file_names[i], 'r')
             lines = my_file.readlines()
             list_of_lists = []
-            #TODO delete [:500], it is for better speed
+
             for line in lines:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -50,6 +52,14 @@ class GetIndices:
             my_file.close()
             for j in range(len(list_of_lists)):
                 features[i].append(list(map(int, list_of_lists[j])))
+                
+    def upload_hdf(self):
+        
+        with h5py.File(self.file_hdf, 'r') as f:
+            self.input_ids = f['input_ids'][:,:]
+            self.input_mask = f['input_mask'][:,:]
+            self.label_ids = f['label_ids'][:,:]
+            f.close()
 
 
     def getlabels(self, filename):
@@ -132,6 +142,20 @@ class TsyaModel:
 
         return train_dataloader, validation_dataloader
 
+    def _from_hdf5_dataset(self, train_processor, val_processor):
+        
+        dataset = TensorDataset(torch.tensor(train_processor.input_ids),
+                                torch.tensor(train_processor.input_mask),
+                                torch.tensor(train_processor.label_ids))
+
+        val_dataset = TensorDataset(torch.tensor(val_processor.input_ids),
+                                    torch.tensor(val_processor.input_mask),
+                                    torch.tensor(val_processor.label_ids))
+
+        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
+
+        return train_dataloader, validation_dataloader
 
     def format_time(self, elapsed):
 
@@ -148,8 +172,11 @@ class TsyaModel:
         labels_flat = labels.flatten()
         return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
 
+    #def train(self, chkp_path, data_processor):
+    def train(self, chkp_path, train_processor, val_processor):
 
-    def train(self, chkp_path, data_processor):
+        #self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
+        self.train_dataloader, self.validation_dataloader = self._from_hdf5_dataset(train_processor=train_processor, val_processor=val_processor)
 
         self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
         print("Dataloader is created")
