@@ -114,10 +114,27 @@ class TsyaModel:
         return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
 
 
-    def train(self, chkp_path, data_processor):
+    def _dataset(self, data_processor):
+
+        dataset = TensorDataset(torch.tensor(data_processor.input_ids),
+                                torch.tensor(data_processor.input_mask),
+                                torch.tensor(data_processor.label_ids))
+
+
+
+        dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        print("Train loader has been loaded")
+
+        return dataloader
+
+
+    def train(self, chkp_path, train_data_processor, val_data_processor):
         if not chkp_path:
             chkp_path = self.weight_path
-        self.train_dataloader, self.validation_dataloader = self._dataset(data_processor=data_processor)
+
+        self.train_dataloader = self._dataset(data_processor=train_data_processor)
+
+        self.validation_dataloader = self._dataset(data_processor=val_data_processor)
         print("Dataloader is created")
 
         total_steps = len(self.train_dataloader) * epochs

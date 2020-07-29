@@ -6,6 +6,7 @@ from transformers import BertTokenizer, BertForTokenClassification, BertConfig
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
+import random
 
 batch_size = 16
 max_seq_length = 512
@@ -277,5 +278,73 @@ class ProcessOutput:
             return 1
 
 
-# def permutation_dataset(volume_of_dataset, data_path, output_path):
-    
+def permutate(arr, saveOrder=False, seedValue=1):
+   idxs = list(range(len(arr)))
+   if saveOrder:
+      random.seed(seedValue)
+   random.shuffle(idxs)
+   if isinstance(arr, np.ndarray):
+      arr = arr[idxs]
+   elif isinstance(arr, list):
+      arr = [arr[idx] for idx in idxs]
+   else:
+      raise TypeError
+   return arr
+
+def to_train_val(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
+
+    if not data_path:
+        data_path = './'
+    if not output_path:
+        output_path = './raw_data/'
+
+    file_names = ['input_ids_', 'input_mask_',
+                  'label_ids_']
+
+    for file_name in file_names:
+
+        input_file_lines = open(data_path + file_name + 'data.txt', 'r', encoding='utf-8').readlines()
+
+        permutated_input_file_lines = permutate(input_file_lines, saveOrder=True, seedValue=random_seed)
+
+        output_file_train_lines = open(output_path + file_name + 'train' + '.txt', 'w', encoding='utf-8')
+        output_file_val_lines = open(output_path + file_name + 'val' + '.txt', 'w', encoding='utf-8')
+        output_file_test_lines = open(output_path + file_name + 'test' + '.txt', 'w', encoding='utf-8')
+
+        counter = 0
+        for line in permutated_input_file_lines:
+            if counter < volume_of_train_data*len(permutated_input_file_lines):
+                output_file_train_lines.writelines(line)
+            elif counter < (volume_of_val_data + volume_of_train_data)*len(permutated_input_file_lines):
+                output_file_val_lines.writelines(line)
+            elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data)*len(permutated_input_file_lines):
+                output_file_test_lines.writelines(line)
+            counter += 1
+        output_file_train_lines.close()
+        output_file_val_lines.close()
+
+def to_choose_part_of_dataset(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data):
+
+    dict_config = {'train': volume_of_train_data, 'val': volume_of_val_data, 'test':volume_of_test_data}
+
+    if not data_path:
+        data_path = './raw_data/'
+    if not output_path:
+        output_path = './data/'
+
+    file_names = ['input_ids_', 'input_mask_',
+                  'label_ids_']
+
+    for ftype in ['train', 'val', 'test']:
+        for file_name in file_names:
+
+            input_file_lines = open(data_path + file_name + ftype +'.txt', 'r', encoding='utf-8').readlines()
+
+            output_file_lines = open(output_path + file_name + ftype + '.txt', 'w', encoding='utf-8')
+            counter = 0
+            for line in input_file_lines:
+                if counter < dict_config[ftype]:
+                    output_file_lines.writelines(line)
+                else:
+                    break
+                counter += 1

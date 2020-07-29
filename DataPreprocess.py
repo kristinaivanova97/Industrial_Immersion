@@ -4,6 +4,7 @@ import re
 from transformers import BertTokenizer
 from tqdm import tqdm
 import math
+from Class import to_train_val, to_choose_part_of_dataset
 
 path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
 path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
@@ -41,7 +42,7 @@ class DataPreprocess:
             list_of_words = []
             list_of_labeles = []
 
-            for line in lines:
+            for line in tqdm(lines):
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 if len(line_list) > 1:
@@ -124,14 +125,34 @@ class DataPreprocess:
             my_file.close()
 
 
+    def generate_batch(self, dataset, number=500):
+        batch = []
+        for sample in dataset:
+            batch.append(sample)
+
+            if len(batch) == 500:
+                yield batch
+
+                batch = []
+
+
+    def write_to_file(self, path):
+        datast_gen = self.generate_batch()
+
+        for batch in datast_gen:
+            with open(path, "a") as inf:
+                inf.writelines(batch)
+
 def main():
     path_to_train_data = "./dataset.txt"
     path_to_train_data = "./dataset.txt"
-    data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor = DataPreprocess(path_to_file=path_to_data)
+    data_processor = DataPreprocess(path_to_file=path_to_train_data)
+    # data_processor = DataPreprocess(path_to_file=path_to_data)
 
     data_processor.save_indices(ftype='data', data_dir = data_dir)
 
+    to_train_val(data_path='./', output_path='./raw_data/', volume_of_train_data=0.8, volume_of_val_data=0.1, volume_of_test_data=0.1, random_seed=1)
+    to_choose_part_of_dataset(data_path='./raw_data/', output_path='./data/', volume_of_train_data=150000, volume_of_val_data=50000, volume_of_test_data=0)
 
 if __name__ == "__main__":
     main()

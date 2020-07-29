@@ -24,19 +24,29 @@ weight_path = "Chkpt2.pth"
 
 def main():
 
-    data_processor = GetIndices(ftype = 'data')
-    data_processor.upload()
-    assert len(data_processor.input_ids[0]) == max_seq_length
-    assert len(data_processor.input_mask[0]) == max_seq_length
-    assert len(data_processor.label_ids[0]) == max_seq_length
+    train_data_processor = GetIndices(ftype = 'train', data_path='./data/')
+    train_data_processor.upload()
+    assert len(train_data_processor.input_ids[0]) == max_seq_length
+    assert len(train_data_processor.input_mask[0]) == max_seq_length
+    assert len(train_data_processor.label_ids[0]) == max_seq_length
 
-    print("Sequense len = ", len(data_processor.input_ids[0]))
-    print("Num of sequences = ", len(data_processor.input_ids))
+    print("Sequense train len = ", len(train_data_processor.input_ids[0]))
+    print("Num of sequences = ", len(train_data_processor.input_ids))
+    print("files with input ids, masks, segment ids and label ids are loaded succesfully")
+
+    val_data_processor = GetIndices(ftype='val', data_path='./data/')
+    val_data_processor.upload()
+    assert len(val_data_processor.input_ids[0]) == max_seq_length
+    assert len(val_data_processor.input_mask[0]) == max_seq_length
+    assert len(val_data_processor.label_ids[0]) == max_seq_length
+
+    print("Sequense val len = ", len(val_data_processor.input_ids[0]))
+    print("Num of sequences = ", len(val_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
     #model = TsyaModel(TrainProcessor = TrainProcessor, ValProcessor = ValProcessor)
-    model = TsyaModel(weight_path, True)
-    model.train(weight_path, data_processor)
+    model = TsyaModel(weight_path=weight_path, train_from_chk=True)
+    model.train(weight_path, train_data_processor, val_data_processor)
 
 
 if __name__ == "__main__":
