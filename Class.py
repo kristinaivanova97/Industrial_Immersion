@@ -83,112 +83,112 @@ class TestPreprocess:
 
 class ProcessOutput:
 
-def __init__(self):
+    def __init__(self):
 
-    self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
-def print_results_in_file(self, file_name):
-    print("Tokens = ", tokens, file=file_name)
-    print("Prediction = ", preds, file=file_name)
-    print("Initial text = {} \n".format(initial_text), file=file_name)
-    print("Correct text = {} \n".format(correct_text), file=file_name)
-    print(file=file_name)
+    def print_results_in_file(self, file_name):
+        print("Tokens = ", tokens, file=file_name)
+        print("Prediction = ", preds, file=file_name)
+        print("Initial text = {} \n".format(initial_text), file=file_name)
+        print("Correct text = {} \n".format(correct_text), file=file_name)
+        print(file=file_name)
 
-def print_results(self, tokens, preds, initial_text, correct_text, message):
-    print("Answer = ", message)
-    print("Tokens = ", tokens)
-    print("Prediction = ", preds)
-    print("Initial text = {} \n".format(initial_text))
-    print("Correct text = {} \n".format(correct_text))
+    def print_results(self, tokens, preds, initial_text, correct_text, message):
+        print("Answer = ", message)
+        print("Tokens = ", tokens)
+        print("Prediction = ", preds)
+        print("Initial text = {} \n".format(initial_text))
+        print("Correct text = {} \n".format(correct_text))
 
-#def process(self, predictions, input_ids, nopad, data_tags, text_data):
-def process(self, predictions, input_ids, nopad, text_data):
-    # with open('results.txt', 'w') as file_name:
-    tokens = []
-    text = []
-    fine_text = ''
-    preds = []
-    correct_text_full = ''
-   
-    incorrect_for_sentences = []
-    all_messages = []
-    all_errors = []
-    
-    step = 0
-    
-    for i,predict in enumerate(predictions):
-        for j, pred in enumerate(predict):
-            tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
-            text = self._tokenizer.decode(input_ids[step, :nopad[step]])
-            # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
-            initial_text = text_data[step]
-            #tags =  np.array(data_tags[step][:nopad[step]])
-            preds = np.array(pred)
-            correct_text = initial_text
-            incorrect_words = []
-            incorrect_words_tisya = []
-            incorrect_words_tsya = []
-            incorrect_words_n = []
-            incorrect_words_nn = []
-            message = ["Correct"]
-            error = []
+    #def process(self, predictions, input_ids, nopad, data_tags, text_data):
+    def process(self, predictions, input_ids, nopad, text_data):
+        # with open('results.txt', 'w') as file_name:
+        tokens = []
+        text = []
+        fine_text = ''
+        preds = []
+        correct_text_full = ''
+       
+        incorrect_for_sentences = []
+        all_messages = []
+        all_errors = []
+        
+        step = 0
+        
+        for i,predict in enumerate(predictions):
+            for j, pred in enumerate(predict):
+                tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
+                text = self._tokenizer.decode(input_ids[step, :nopad[step]])
+                # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
+                initial_text = text_data[step]
+                #tags =  np.array(data_tags[step][:nopad[step]])
+                preds = np.array(pred)
+                correct_text = initial_text
+                incorrect_words = []
+                incorrect_words_tisya = []
+                incorrect_words_tsya = []
+                incorrect_words_n = []
+                incorrect_words_nn = []
+                message = ["Correct"]
+                error = []
 
-            replace_tsya = np.where(preds==7)[0].tolist()
-            replace_tisya = np.where(preds==6)[0].tolist()
-            replace_n = np.where(preds==5)[0].tolist()
-            replace_nn = np.where(preds==4)[0].tolist()
+                replace_tsya = np.where(preds==7)[0].tolist()
+                replace_tisya = np.where(preds==6)[0].tolist()
+                replace_n = np.where(preds==5)[0].tolist()
+                replace_nn = np.where(preds==4)[0].tolist()
 
-            list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
-            list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
+                list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
+                list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
 
-            for j,replace_list in enumerate(list_of_replace_indeces):
+                for j,replace_list in enumerate(list_of_replace_indeces):
 
-                if len(replace_list) > 0:
-                    message = ["Incorrect"]
-                    for i in range(len(replace_list)):
-                        word = tokens[replace_list[i]]
-                        k = 1
-                        while preds[replace_list[i] + k] == 8: # ["##"]
-                            index = replace_list[i] + k
-                            word += tokens[index][2:]
-                            k+=1
-                        incorrect_words.append(word)
-                        list_of_words_with_mistake[j].append(word)
+                    if len(replace_list) > 0:
+                        message = ["Incorrect"]
+                        for i in range(len(replace_list)):
+                            word = tokens[replace_list[i]]
+                            k = 1
+                            while preds[replace_list[i] + k] == 8: # ["##"]
+                                index = replace_list[i] + k
+                                word += tokens[index][2:]
+                                k+=1
+                            incorrect_words.append(word)
+                            list_of_words_with_mistake[j].append(word)
 
-            for word in incorrect_words_tisya:
-                error.append("Тся -> ться")
-                word_correct = word.replace('тся', 'ться')
-                correct_text = correct_text.replace(word, word_correct)
+                for word in incorrect_words_tisya:
+                    error.append("Тся -> ться")
+                    word_correct = word.replace('тся', 'ться')
+                    correct_text = correct_text.replace(word, word_correct)
 
-            for word in incorrect_words_tsya:
-                error.append("Ться -> тся")
-                word_correct = word.replace('ться', 'тся')
-                correct_text = correct_text.replace(word, word_correct)
+                for word in incorrect_words_tsya:
+                    error.append("Ться -> тся")
+                    word_correct = word.replace('ться', 'тся')
+                    correct_text = correct_text.replace(word, word_correct)
+                    
+                pattern_nn = re.compile(r'(?-i:нн)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
+                pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
+                for word in incorrect_words_n:
+                    error.append("нн -> н")
+                    word_correct = pattern_nn.sub('н', word)
+                    #word_correct = word.replace('нн', 'н')
+                    correct_text = correct_text.replace(word, word_correct)
+
+                for word in incorrect_words_nn:
+                    error.append("н -> нн")
+                    word_correct = pattern_n.sub('нн', word)
+                    #word_correct = word.replace('н', 'нн')
+                    correct_text = correct_text.replace(word, word_correct)
+
+                self.print_results(tokens, preds, initial_text, correct_text, message)
                 
-            pattern_nn = re.compile(r'(?-i:нн)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
-            pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
-            for word in incorrect_words_n:
-                error.append("нн -> н")
-                word_correct = pattern_nn.sub('н', word)
-                #word_correct = word.replace('нн', 'н')
-                correct_text = correct_text.replace(word, word_correct)
+                incorrect_for_sentences.append(incorrect_words)
+                all_messages.append(message)
+                all_errors.append(error)
+                correct_text_full += correct_text
+                
+                step+=1
 
-            for word in incorrect_words_nn:
-                error.append("н -> нн")
-                word_correct = pattern_n.sub('нн', word)
-                #word_correct = word.replace('н', 'нн')
-                correct_text = correct_text.replace(word, word_correct)
-
-            self.print_results(tokens, preds, initial_text, correct_text, message)
-            
-            incorrect_for_sentences.append(incorrect_words)
-            all_messages.append(message)
-            all_errors.append(error)
-            correct_text_full += correct_text
-            
-            step+=1
-
-    return incorrect_for_sentences, all_messages, correct_text_full, all_errors
+        return incorrect_for_sentences, all_messages, correct_text_full, all_errors
 '''
 def _check_coincide(self):
     
