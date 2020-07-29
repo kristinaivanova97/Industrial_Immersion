@@ -79,98 +79,13 @@ class TestPreprocess:
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
-    
-    # def gettags(self, text):
-    #
-    #     tsya_search = re.compile(r'тся\b')
-    #     tsiya_search = re.compile(r'ться\b')
-    #     dicty = {}
-    #     i = 0
-    #     for raw in tqdm(text):
-    #
-    #         m = tsya_search.findall(raw)
-    #         m2 = tsiya_search.findall(raw)
-    #
-    #         for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', raw, re.UNICODE)):
-    #
-    #             m = tsya_search.search(word)
-    #             m2 = tsiya_search.search(word)
-    #             dicty.setdefault(i, {})
-    #             if m is not None:
-    #                 dicty[i][j] = m.group() # "тся" label
-    #             elif m2 is not None:
-    #                 dicty[i][j] = m2.group() # "ться" label
-    #             else:
-    #                 dicty[i][j] = "O"
-    #         i+=1
-    #
-    #     y_label = []
-    #     for i in dicty.keys():
-    #         raw = []
-    #         for j in range(len(dicty[i])):
-    #             raw.append(dicty[i][j])
-    #         y_label.append(raw)
-    #     return y_label
-
-
-# class TsyaModel:
-#
-#     def __init__(self, weight_path = weight_path):
-#
-#         label_list = ["[Padding]", "[SEP]", "[CLS]", "O","ться", "тся"]
-#         self.m =  BertForTokenClassification.from_pretrained(
-#                         'bert-base-multilingual-cased',
-#                         num_labels = len(label_list),
-#                         output_attentions = False,
-#                         output_hidden_states = False,
-#                     )
-#         self.m.load_state_dict(torch.load(weight_path))
-#         self.m.to(device)
-#
-#     def predict_batch(self, prediction_dataloader, nopad):
-#
-#         self.m.eval()
-#         predicts_full = []
-#         step = 0
-#         for batch in prediction_dataloader:
-#             batch = tuple(t.to(device) for t in batch)
-#             b_input_ids, b_input_mask = batch
-#             with torch.no_grad():
-#
-#                 output = self.m(b_input_ids, token_type_ids=None,
-#                               attention_mask=b_input_mask)
-#             logits = output[0].detach().cpu().numpy()
-#             prediction = np.argmax(logits, axis=2)
-#             predicts = []
-#             for i in range(len(b_input_ids)):
-#
-#                 predicts.append(prediction[i, :nopad[step]])
-#                 step+=1
-#             predicts_full.append(predicts)
-#
-#         return predicts_full
-#
-#     def predict_sentence(self, input_ids, attention_masks, nopad):
-#
-#         self.m.eval()
-#         predicts = []
-#         input_ids = input_ids.to(device)
-#         input_mask = attention_masks.to(device)
-#
-#         with torch.no_grad():
-#                 output = self.m(input_ids, token_type_ids=None,
-#                               attention_mask=input_mask)
-#         logits = output[0].detach().cpu().numpy()
-#         prediction = np.argmax(logits, axis=2)
-#         predicts.append(prediction[0, :nopad[0]])
-#         return predicts
 
 
 class ProcessOutput:
 
-def __init__(self):
+    def __init__(self):
 
-    self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
     def print_results_in_file(self, file_name):
         print("Tokens = ", tokens, file=file_name)
@@ -222,7 +137,7 @@ def __init__(self):
 
                     if len(replace_list) > 0:
                         message = ["Incorrect"]
-                        for i in range(len(replace_list))
+                        for i in range(len(replace_list)):
                             word = tokens[replace_list[i]]
                             k = 1
                             while preds[replace_list[i] + k] == ["##"]:
@@ -271,7 +186,7 @@ def _check_coincide(self):
 '''
 
 
-def permutate(arr, saveOrder=False, seedValue=1):
+def permutate(arr, saveOrder=True, seedValue=1):
    idxs = list(range(len(arr)))
    if saveOrder:
       random.seed(seedValue)
@@ -314,6 +229,7 @@ def to_train_val(data_path, output_path, volume_of_train_data, volume_of_val_dat
                 output_file_test_lines.writelines(line)
             counter += 1
         output_file_train_lines.close()
+        output_file_val_lines.close()
         output_file_val_lines.close()
 
 def to_choose_part_of_dataset(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data):

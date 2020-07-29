@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import pandas as pd
 import re
@@ -231,11 +232,11 @@ class DataPreprocess:
 
     def save_indices_hdf(self, data_dir, train_size = 150000):
 
-        input_ids, attention_masks, label_ids = self._process()
+        input_ids, input_mask, label_ids = self._process()
         input_ids = np.array(input_ids)
         attention_masks = np.array(input_mask)
         label_ids = np.array(label_ids)
-        val_size = train_size:8
+        val_size = train_size/8
 
         with h5py.File(data_dir + 'ids_all_train.hdf5', 'w') as f:
             dset_input_ids = f.create_dataset("input_ids", (train_size, 512), dtype='i8')
