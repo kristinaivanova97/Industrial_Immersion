@@ -1,5 +1,6 @@
 import warnings
 
+import h5py
 from tqdm import tqdm
 
 warnings.filterwarnings('ignore', category=FutureWarning)

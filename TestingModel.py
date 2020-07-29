@@ -48,9 +48,11 @@ def main(path_file):
                 text_data.append(line.split('\n')[0])
     else:
         num_of_sentences = int(input("Число предложений: "))
+        # num_of_sentences = 1
         text_data = []
         for i in range(num_of_sentences):
             text = input("Предложение: ")
+            # text = 'Мне плохо спиться'
             text_data.append(text)
 
     start_time = time.time()

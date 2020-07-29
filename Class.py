@@ -37,7 +37,6 @@ class TestPreprocess:
         # y_label = self.gettags(text)
         for i, sentence in enumerate(text):
             tokens = []
-            labels = []
             for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', sentence, re.UNICODE)):
                 token = self.tokenizer.tokenize(word)
                 tokens.extend(token)
@@ -47,25 +46,21 @@ class TestPreprocess:
 
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
-                labels = labels[0:(max_seq_length - 2)]
             ntokens = []
             label_ids = []
             ntokens.append("[CLS]")
             label_ids.append(self.label_map["[CLS]"])
-            for i, token in enumerate(tokens):
+            for k, token in enumerate(tokens):
                 ntokens.append(token)
-                label_ids.append(self.label_map[labels[i]])
                     
             ntokens.append("[SEP]")
             nopad.append(len(ntokens))
-            label_ids.append(self.label_map["[SEP]"])
             input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
             input_mask = [1] * len(input_ids)
 
             while len(input_ids) < max_seq_length:
                 input_ids.append(0)
                 input_mask.append(0)
-                label_ids.append(0)
                 ntokens.append("[Padding]")
             assert len(input_ids) == max_seq_length
             assert len(input_mask) == max_seq_length
@@ -198,6 +193,41 @@ def permutate(arr, saveOrder=True, seedValue=1):
    else:
       raise TypeError
    return arr
+
+def to_train_val_test_hdf(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
+
+    if not data_path:
+        data_path = './'
+    if not output_path:
+        output_path = './raw_data/'
+
+    file_names = ['input_ids_', 'input_mask_',
+                  'label_ids_']
+
+    for file_name in file_names:
+
+        input_file_lines = open(data_path + file_name + 'data.txt', 'r', encoding='utf-8').readlines()
+
+        permutated_input_file_lines = permutate(input_file_lines, saveOrder=True, seedValue=random_seed)
+
+        output_file_train_lines = open(output_path + file_name + 'train' + '.txt', 'w', encoding='utf-8')
+        output_file_val_lines = open(output_path + file_name + 'val' + '.txt', 'w', encoding='utf-8')
+        output_file_test_lines = open(output_path + file_name + 'test' + '.txt', 'w', encoding='utf-8')
+
+        counter = 0
+        for line in permutated_input_file_lines:
+            if counter < volume_of_train_data*len(permutated_input_file_lines):
+                output_file_train_lines.writelines(line)
+            elif counter < (volume_of_val_data + volume_of_train_data)*len(permutated_input_file_lines):
+                output_file_val_lines.writelines(line)
+            elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data)*len(permutated_input_file_lines):
+                output_file_test_lines.writelines(line)
+            counter += 1
+        output_file_train_lines.close()
+        output_file_val_lines.close()
+        output_file_val_lines.close()
+
+
 
 def to_train_val(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
 
