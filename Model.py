@@ -33,7 +33,7 @@ class GetIndices:
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
-            
+
 
     def upload(self):
 
@@ -52,9 +52,9 @@ class GetIndices:
             my_file.close()
             for j in range(len(list_of_lists)):
                 features[i].append(list(map(int, list_of_lists[j])))
-                
+
     def upload_hdf(self):
-        
+
         with h5py.File(self.file_hdf, 'r') as f:
             self.input_ids = f['input_ids'][:,:]
             self.input_mask = f['input_mask'][:,:]
@@ -62,7 +62,7 @@ class GetIndices:
             f.close()
 
 
-    def getlabels(self, filename):
+    def get_labels(self, filename):
 
         # *** not nessesary as wont't be used later ***
         my_file = open(filename, 'r') # 'Labels.txt'
@@ -85,9 +85,9 @@ class TsyaModel:
         self.weight_path = weight_path
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
                       "[##]"]
-        # self.label_map = {}
-        # for (i, label) in enumerate(self.label_list):
-        #     self.label_map[label] = i
+        self.label_map = {}
+        for (i, label) in enumerate(self.label_list):
+            self.label_map[label] = i
 
         self.model = BertForTokenClassification.from_pretrained(
             'bert-base-multilingual-cased',
@@ -108,55 +108,6 @@ class TsyaModel:
         self.model.to(device)
         self.seed_val = 42
 
-
-    def _dataset(self, train_processor, val_processor):
-
-        # Combine the training inputs into a TensorDataset.
-
-        dataset = TensorDataset(torch.tensor(train_processor.input_ids[:15000]),
-                                torch.tensor(train_processor.input_mask[:15000]),
-                                torch.tensor(train_processor.label_ids[:15000]))
-
-        val_dataset = TensorDataset(torch.tensor(val_processor.input_ids[:20000]),
-                                    torch.tensor(val_processor.input_mask[:20000]),
-                                    torch.tensor(val_processor.label_ids[:20000]))
-
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
-
-        return train_dataloader, validation_dataloader
-
-    def _new_dataset(self, data_processor):
-
-        dataset = TensorDataset(torch.tensor(data_processor.input_ids[:1000]),
-                                torch.tensor(data_processor.input_mask[:1000]),
-                                torch.tensor(data_processor.label_ids[:1000]))
-
-        val_dataset = TensorDataset(torch.tensor(data_processor.input_ids[1000:2000]),
-                                    torch.tensor(data_processor.input_mask[1000:2000]),
-                                    torch.tensor(data_processor.label_ids[1000:2000]))
-
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        print("Train loader has been loaded")
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
-
-        return train_dataloader, validation_dataloader
-
-    def _from_hdf5_dataset(self, train_processor, val_processor):
-        
-        dataset = TensorDataset(torch.tensor(train_processor.input_ids),
-                                torch.tensor(train_processor.input_mask),
-                                torch.tensor(train_processor.label_ids))
-
-        val_dataset = TensorDataset(torch.tensor(val_processor.input_ids),
-                                    torch.tensor(val_processor.input_mask),
-                                    torch.tensor(val_processor.label_ids))
-
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
-
-        return train_dataloader, validation_dataloader
-
     def format_time(self, elapsed):
 
         '''
@@ -172,31 +123,30 @@ class TsyaModel:
         labels_flat = labels.flatten()
         return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
 
-    #def train(self, chkp_path, data_processor):
-    def train(self, chkp_path, train_processor, val_processor):
 
-        #self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
-        self.train_dataloader, self.validation_dataloader = self._from_hdf5_dataset(train_processor=train_processor, val_processor=val_processor)
+    def _dataset(self, data_processor):
 
-        self.train_dataloader, self.validation_dataloader = self._new_dataset(data_processor=data_processor)
+        dataset = TensorDataset(torch.tensor(data_processor.input_ids),
+                                torch.tensor(data_processor.input_mask),
+                                torch.tensor(data_processor.label_ids))
+
+
+
+        dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        print("Train loader has been loaded")
+
+        return dataloader
+
+
+    def train(self, chkp_path, train_data_processor, val_data_processor):
+        if not chkp_path:
+            chkp_path = self.weight_path
+
+        self.train_dataloader = self._dataset(data_processor=train_data_processor)
+
+        self.validation_dataloader = self._dataset(data_processor=val_data_processor)
         print("Dataloader is created")
 
-        # TrainProcessor = GetIndices(ftype='train', data_path=data_path)
-        # ValProcessor = GetIndices(ftype='val', data_path=data_path)
-        # TrainProcessor.upload()
-        # ValProcessor.upload()
-        #
-        # assert len(TrainProcessor.input_ids[0]) == max_seq_length
-        # assert len(TrainProcessor.input_mask[0]) == max_seq_length
-        # assert len(TrainProcessor.label_ids[0]) == max_seq_length
-        #
-        # print("Sequense len = ", len(TrainProcessor.input_ids[0]))
-        # print("Num of sequences = ", len(TrainProcessor.input_ids))
-        # print("Num of val sequences = ", len(ValProcessor.input_ids))
-        # print("files with input ids, masks, segment ids and label ids are loaded succesfully")
-        #
-        # self.train_dataloader, self.validation_dataloader = self.__Dataset(TrainProcessor=TrainProcessor,
-        #                                                                    ValProcessor=ValProcessor)
         total_steps = len(self.train_dataloader) * epochs
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,

@@ -4,16 +4,21 @@ import re
 from transformers import BertTokenizer
 from tqdm import tqdm
 import math
+from Class import to_train_val, to_choose_part_of_dataset
 
 path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
 path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
 path_to_train_labels = 'Labels.txt'
 path_to_val_labels = 'Val_labels.txt'
 
+label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 max_seq_length = 512
 data_dir = "./new_data/"
 path_to_data = "./dataset.txt"
 
+
+my_file = 'test.txt'
 class DataPreprocess:
     
     def __init__(self, path_to_file):
@@ -23,9 +28,9 @@ class DataPreprocess:
         self.label_map = {}
         for (i, label) in enumerate(label_list):
             self.label_map[label] = i
-            
+
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.file =  path_to_file
+        self.file = path_to_file
 
 
     def generate_batch(self, dataset, number=5000):
@@ -93,6 +98,7 @@ class DataPreprocess:
             lines = file.readlines()
             list_of_words = []
             list_of_labeles = []
+
             for line in tqdm(lines):
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -151,7 +157,7 @@ class DataPreprocess:
         assert len(label_ids) == max_seq_length
 
         return input_ids, input_mask, label_ids, nopad
-    
+
     def convert_single_example_with_part_of_word(self, sentence, sentence_labels, max_seq_length = 512):
 
         tokens = []
@@ -194,25 +200,25 @@ class DataPreprocess:
 
         return input_ids, input_mask, label_ids, nopad
 
-    def save_labels(self, path):
- 
-        my_file = open(path, 'w', encoding='utf-8')
-        for raw in tqdm(self.y_label):
-            for elem in raw:
-                my_file.write(str(elem))
-                my_file.write(' ')
-            my_file.write('\n')
-        my_file.close()
-        
+    # def save_labels(self, path):
+    #
+    #     my_file = open(path, 'w', encoding='utf-8')
+    #     for raw in tqdm(self.y_label):
+    #         for elem in raw:
+    #             my_file.write(str(elem))
+    #             my_file.write(' ')
+    #         my_file.write('\n')
+    #     my_file.close()
+
     def save_indices(self, ftype, data_dir):
-        
+
         #generator = self._process_batch()
-        
+
         input_ids, attention_masks, label_ids = self._process()
         # save to 3 files
         file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
         features = [input_ids, attention_masks, label_ids]
-                      
+
         for j in range(len(file_names)):
             my_file = open (file_names[j], 'w', encoding='utf-8')
             for raw in features[j]:
@@ -221,8 +227,8 @@ class DataPreprocess:
                     my_file.write(' ')
                 my_file.write('\n')
             my_file.close()
-    
-    
+
+
     def save_indices_hdf(self, data_dir, train_size = 150000):
 
         input_ids, attention_masks, label_ids = self._process()
@@ -230,7 +236,7 @@ class DataPreprocess:
         attention_masks = np.array(input_mask)
         label_ids = np.array(label_ids)
         val_size = train_size:8
-        
+
         with h5py.File(data_dir + 'ids_all_train.hdf5', 'w') as f:
             dset_input_ids = f.create_dataset("input_ids", (train_size, 512), dtype='i8')
             dset_input_ids[:,:] = input_ids[:train_size, :]
@@ -249,8 +255,15 @@ class DataPreprocess:
             f.close()
 
 def main():
-    data_processor = DataPreprocess(path_to_file=path_to_data)
+    path_to_train_data = "./dataset.txt"
+    path_to_train_data = "./dataset.txt"
+    data_processor = DataPreprocess(path_to_file=path_to_train_data)
+    # data_processor = DataPreprocess(path_to_file=path_to_data)
 
+    data_processor.save_indices(ftype='data', data_dir = data_dir)
+
+    to_train_val(data_path='./', output_path='./raw_data/', volume_of_train_data=0.8, volume_of_val_data=0.1, volume_of_test_data=0.1, random_seed=1)
+    to_choose_part_of_dataset(data_path='./raw_data/', output_path='./data/', volume_of_train_data=150000, volume_of_val_data=50000, volume_of_test_data=0)
     #data_processor.save_indices(ftype='data', data_dir = data_dir)
     #data_processor.save_indices(ftype='full_labels', data_dir = data_dir)
     data_processor.save_indices_hdf(data_dir = data_dir)
