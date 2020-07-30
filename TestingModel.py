@@ -63,8 +63,7 @@ def main(path_file):
         model = TsyaModel(weight_path = weight_path, train_from_chk = True)
         predicts = model.predict(prediction_dataloader, nopad)
         output = ProcessOutput()
-        #incorrect, message, correct_text = output.process(predicts, input_ids, nopad, label_ids, text_data)
-        incorrect, message, correct_text = output.process(predicts, input_ids, nopad, data_with_tsya_or_nn)
+        incorrect_for_sentences, all_messages, correct_text_full, all_errors = output.process(predicts, input_ids, nopad, data_with_tsya_or_nn)
 
     print('Elapsed time: ', time.time() - start_time)
 
