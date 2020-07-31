@@ -19,24 +19,25 @@ print(f"Device: {device}")
 weight_path = "Chkpt2.pth"
 
 def check_contain_tsya_or_nn(data):
+    
     data_with_tsya_or_nn = []
     tsya_search = re.compile(r'тся\b')
     tsiya_search = re.compile(r'ться\b')
-    n_search = re.compile(r'\wн\w*\b') # the words, which contain "н" in the middle or in the end of word
-    nn_search = re.compile(r'\wнн\w*\b')
-
+    nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
+    n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
+    
     for sentence in data:
-
+        
         places_with_tsya = tsya_search.search(sentence)
         places_with_tisya = tsiya_search.search(sentence)
         places_with_n = n_search.search(sentence)
         places_with_nn = nn_search.search(sentence)
-
+        
         if (places_with_tsya is not None) or (places_with_tisya is not None) or (places_with_n is not None) or (places_with_nn is not None):
             data_with_tsya_or_nn.append(sentence)
-
+        
     return data_with_tsya_or_nn
-
+    
 def main(path_file):
     
     data_processor = TestPreprocess()
@@ -64,8 +65,7 @@ def main(path_file):
         model = TsyaModel(weight_path = weight_path, train_from_chk = True)
         predicts = model.predict(prediction_dataloader, nopad)
         output = ProcessOutput()
-        #incorrect, message, correct_text = output.process(predicts, input_ids, nopad, label_ids, text_data)
-        incorrect, message, correct_text = output.process(predicts, input_ids, nopad, data_with_tsya_or_nn)
+        incorrect_for_sentences, all_messages, correct_text_full, all_errors = output.process(predicts, input_ids, nopad, data_with_tsya_or_nn)
 
     print('Elapsed time: ', time.time() - start_time)
 

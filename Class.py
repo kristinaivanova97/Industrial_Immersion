@@ -92,7 +92,8 @@ class ProcessOutput:
         print("Correct text = {} \n".format(correct_text), file=file_name)
         print(file=file_name)
 
-    def print_results(self):
+    def print_results(self, tokens, preds, initial_text, correct_text, message):
+        print("Answer = ", message)
         print("Tokens = ", tokens)
         print("Prediction = ", preds)
         print("Initial text = {} \n".format(initial_text))
@@ -106,7 +107,13 @@ class ProcessOutput:
         fine_text = ''
         preds = []
         correct_text_full = ''
+       
+        incorrect_for_sentences = []
+        all_messages = []
+        all_errors = []
+        
         step = 0
+        
         for i,predict in enumerate(predictions):
             for j, pred in enumerate(predict):
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
@@ -122,6 +129,7 @@ class ProcessOutput:
                 incorrect_words_n = []
                 incorrect_words_nn = []
                 message = ["Correct"]
+                error = []
 
                 replace_tsya = np.where(preds==7)[0].tolist()
                 replace_tisya = np.where(preds==6)[0].tolist()
@@ -138,7 +146,7 @@ class ProcessOutput:
                         for i in range(len(replace_list)):
                             word = tokens[replace_list[i]]
                             k = 1
-                            while preds[replace_list[i] + k] == ["##"]:
+                            while preds[replace_list[i] + k] == 8: # ["##"]
                                 index = replace_list[i] + k
                                 word += tokens[index][2:]
                                 k+=1
@@ -146,27 +154,39 @@ class ProcessOutput:
                             list_of_words_with_mistake[j].append(word)
 
                 for word in incorrect_words_tisya:
-                    word_correct = word.replace('ться', 'тся')
-                    correct_text = correct_text.replace(word, word_correct)
-
-                for word in incorrect_words_tsya:
+                    error.append("Тся -> ться")
                     word_correct = word.replace('тся', 'ться')
                     correct_text = correct_text.replace(word, word_correct)
 
+                for word in incorrect_words_tsya:
+                    error.append("Ться -> тся")
+                    word_correct = word.replace('ться', 'тся')
+                    correct_text = correct_text.replace(word, word_correct)
+                    
+                pattern_nn = re.compile(r'(?-i:нн)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
+                pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
                 for word in incorrect_words_n:
-                    word_correct = word.replace('n', 'nn')
+                    error.append("нн -> н")
+                    word_correct = pattern_nn.sub('н', word)
+                    #word_correct = word.replace('нн', 'н')
                     correct_text = correct_text.replace(word, word_correct)
 
                 for word in incorrect_words_nn:
-                    word_correct = word.replace('nn', 'n')
+                    error.append("н -> нн")
+                    word_correct = pattern_n.sub('нн', word)
+                    #word_correct = word.replace('н', 'нн')
                     correct_text = correct_text.replace(word, word_correct)
 
-                self.print_results()
-
+                self.print_results(tokens, preds, initial_text, correct_text, message)
+                
+                incorrect_for_sentences.append(incorrect_words)
+                all_messages.append(message)
+                all_errors.append(error)
+                correct_text_full += correct_text
+                
                 step+=1
-        correct_text_full += correct_text
 
-        return incorrect_words, message, correct_text_full
+        return incorrect_for_sentences, all_messages, correct_text_full, all_errors
 '''
 def _check_coincide(self):
     
