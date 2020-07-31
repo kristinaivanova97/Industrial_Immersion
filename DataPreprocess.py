@@ -5,7 +5,7 @@ import re
 from transformers import BertTokenizer
 from tqdm import tqdm
 import math
-from Class import to_train_val, to_choose_part_of_dataset
+from Class import to_train_val, to_choose_part_of_dataset, to_train_val_test_hdf
 
 path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
 path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
@@ -51,29 +51,23 @@ class DataPreprocess:
             with open(path, "a") as inf:
                 inf.writelines(batch)
 
-    def _process_batch(self):
-        
-        # input_ids_batch = []
-        # attention_masks_batch = []
-        # label_ids_batch = []
-        # nopad_batch = []
-        
+    def process_batch(self):
 
         with open(self.file, 'r', encoding='utf-8') as file:
             with h5py.File(data_dir + 'ids_all.hdf5', 'w') as f:
-                dset_input_ids = f.create_dataset("input_ids", (1000000, 512), maxshape=(1500000,512), dtype='i8')
-                dset_input_mask = f.create_dataset("input_mask", (1000000, 512), maxshape=(1500000,512), dtype='i1')
-                dset_label_ids = f.create_dataset("label_ids", (1000000, 512), maxshape=(1500000,512), dtype='i1')
+                dset_input_ids = f.create_dataset("input_ids", (1200000, 512), maxshape=(1500000,512), dtype='i8')
+                dset_input_mask = f.create_dataset("input_mask", (1200000, 512), maxshape=(1500000,512), dtype='i1')
+                dset_label_ids = f.create_dataset("label_ids", (1200000, 512), maxshape=(1500000,512), dtype='i1')
                 line = file.readline()
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 i = 0
                 pbar = tqdm(total=29247027)
-
+                list_of_words = []
+                list_of_labeles = []
                 while line:
 
-                    list_of_words = []
-                    list_of_labeles = []
+
 
                     if len(line_list) > 1:
                         list_of_words.append(line_list[0])
@@ -81,90 +75,58 @@ class DataPreprocess:
 
                     else:
 
-                        # input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words,
                                                                                               list_of_labeles)
-                        # input_ids_batch.append(input_ids)
-                        # attention_masks_batch.append(input_mask)
-                        # label_ids_batch.append(label_ids)
-                        # nopad_batch.append(nopad)
+
 
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
                         dset_label_ids[i, :] = label_ids[:]
+                        list_of_words = []
+                        list_of_labeles = []
+                        i += 1
 
-                        # yield input_ids, input_mask, label_ids, nopad
-
-                        # input_ids_batch = []
-                        # attention_masks_batch = []
-                        # label_ids_batch = []
-                        # nopad_batch = []
                     line = file.readline()
                     stripped_line = line.strip()
                     line_list = stripped_line.split()
-                    i += 1
+
                     pbar.update(1)
+
                 pbar.close()
-            f.close()
-        file.close()
-
-            # lines = file.readlines()
-            # list_of_words = []
-            # list_of_labeles = []
-            # for line in tqdm(lines):
-            #     stripped_line = line.strip()
-            #     line_list = stripped_line.split()
-            #     if len(line_list) > 1:
-            #         list_of_words.append(line_list[0])
-            #         list_of_labeles.append(line_list[1])
-            #     else:
-            #
-            #         #input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
-            #         input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
-            #         input_ids_batch.append(input_ids)
-            #         attention_masks_batch.append(input_mask)
-            #         label_ids_batch.append(label_ids)
-            #         nopad_batch.append(nopad)
-            #         list_of_words = []
-            #         list_of_labeles = []
-            #         if len(input_ids_batch) == 5000:
-            #             yield input_ids_batch, attention_masks_batch, label_ids_batch, nopad_batch
-            #
-            #             input_ids_batch = []
-            #             attention_masks_batch = []
-            #             label_ids_batch = []
-            #             nopad_batch = []
-
-    def _process(self):
-
-        input_ids_full = []
-        attention_masks_full = []
-        label_ids_full = []
-        nopad_full = []
 
 
-        with open(self.file, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-            list_of_words = []
-            list_of_labeles = []
 
-            for line in tqdm(lines):
-                stripped_line = line.strip()
-                line_list = stripped_line.split()
-                if len(line_list) > 1:
-                    list_of_words.append(line_list[0])
-                    list_of_labeles.append(line_list[1])
-                else:
 
-                    #input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
-                    input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
-                    input_ids_full.append(input_ids)
-                    attention_masks_full.append(input_mask)
-                    label_ids_full.append(label_ids)
-                    nopad_full.append(nopad)
-                    list_of_words = []
-                    list_of_labeles = []
-        return input_ids_full, attention_masks_full, label_ids_full
+    # def _process(self):
+    #
+    #     input_ids_full = []
+    #     attention_masks_full = []
+    #     label_ids_full = []
+    #     nopad_full = []
+    #
+    #
+    #     with open(self.file, 'r', encoding='utf-8') as file:
+    #         lines = file.readlines()
+    #         list_of_words = []
+    #         list_of_labeles = []
+    #
+    #         for line in tqdm(lines):
+    #             stripped_line = line.strip()
+    #             line_list = stripped_line.split()
+    #             if len(line_list) > 1:
+    #                 list_of_words.append(line_list[0])
+    #                 list_of_labeles.append(line_list[1])
+    #             else:
+    #
+    #                 #input_ids, input_mask, label_ids, nopad = self.convert_single_example_with_part_of_word(list_of_words, list_of_labeles)
+    #                 input_ids, input_mask, label_ids, nopad = self.convert_single_example(list_of_words, list_of_labeles)
+    #                 input_ids_full.append(input_ids)
+    #                 attention_masks_full.append(input_mask)
+    #                 label_ids_full.append(label_ids)
+    #                 nopad_full.append(nopad)
+    #                 list_of_words = []
+    #                 list_of_labeles = []
+    #     return input_ids_full, attention_masks_full, label_ids_full
 
 
     def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512):
@@ -261,7 +223,7 @@ class DataPreprocess:
 
     def save_indices(self, ftype, data_dir):
 
-        generator = self._process_batch()
+        generator = self.process_batch()
 
 
 
@@ -309,12 +271,13 @@ class DataPreprocess:
             f.close()
 
 def main():
-    path_to_train_data = "./dataset.txt"
-    path_to_train_data = "./dataset.txt"
-    data_processor = DataPreprocess(path_to_file=path_to_train_data)
+    # path_to_train_data = "./dataset.txt"
+    # data_processor = DataPreprocess(path_to_file=path_to_train_data)
     # data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor._process_batch()
+    # data_processor.process_batch()
     # data_processor.save_indices(ftype='data', data_dir = data_dir)
+
+    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', volume_of_train_data=100000, volume_of_val_data=20000, volume_of_test_data=20000, random_seed=1)
 
     # to_train_val(data_path='./', output_path='./raw_data/', volume_of_train_data=0.8, volume_of_val_data=0.1, volume_of_test_data=0.1, random_seed=1)
     # to_choose_part_of_dataset(data_path='./raw_data/', output_path='./data/', volume_of_train_data=150000, volume_of_val_data=50000, volume_of_test_data=0)

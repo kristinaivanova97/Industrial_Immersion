@@ -1,4 +1,7 @@
 import warnings
+
+import h5py
+
 warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import re
@@ -194,38 +197,56 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-def to_train_val_test_hdf(data_path, output_path, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
+def to_train_val_test_hdf(data_dir, output_dir, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
 
-    if not data_path:
-        data_path = './'
-    if not output_path:
-        output_path = './raw_data/'
 
-    file_names = ['input_ids_', 'input_mask_',
-                  'label_ids_']
+    if not data_dir:
+        data_dir = './new_data/'
 
-    for file_name in file_names:
+    if not output_dir:
+        output_dir = './data/'
 
-        input_file_lines = open(data_path + file_name + 'data.txt', 'r', encoding='utf-8').readlines()
+    with h5py.File(data_dir + 'ids_all.hdf5', 'r') as f:
+        with h5py.File(output_dir + 'train' + '.hdf5', 'w') as file_train:
+            with h5py.File(output_dir + 'val' + '.hdf5', 'w') as file_val:
+                with h5py.File(output_dir + 'test' + '.hdf5', 'w') as file_test:
+                    dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
 
-        permutated_input_file_lines = permutate(input_file_lines, saveOrder=True, seedValue=random_seed)
+                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+                        output_data_train = file_train.create_dataset(ftype, (200000, 512), maxshape=(1000000, 512),
+                                                                      dtype=dtype_dict[ftype])
 
-        output_file_train_lines = open(output_path + file_name + 'train' + '.txt', 'w', encoding='utf-8')
-        output_file_val_lines = open(output_path + file_name + 'val' + '.txt', 'w', encoding='utf-8')
-        output_file_test_lines = open(output_path + file_name + 'test' + '.txt', 'w', encoding='utf-8')
+                        output_data_val = file_val.create_dataset(ftype, (21000, 512), maxshape=(25000, 512),
+                                                                  dtype=dtype_dict[ftype])
+                        output_data_test = file_test.create_dataset(ftype, (21000, 512), maxshape=(25000, 512),
+                                                                    dtype=dtype_dict[ftype])
+                        input_data = f[ftype]
 
-        counter = 0
-        for line in permutated_input_file_lines:
-            if counter < volume_of_train_data*len(permutated_input_file_lines):
-                output_file_train_lines.writelines(line)
-            elif counter < (volume_of_val_data + volume_of_train_data)*len(permutated_input_file_lines):
-                output_file_val_lines.writelines(line)
-            elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data)*len(permutated_input_file_lines):
-                output_file_test_lines.writelines(line)
-            counter += 1
-        output_file_train_lines.close()
-        output_file_val_lines.close()
-        output_file_val_lines.close()
+                        idxs = list(range(len(input_data)))
+
+                        random.seed(random_seed)
+                        random.shuffle(idxs)
+
+                        # permutated_input_file_lines = permutate(input_data, saveOrder=True, seedValue=random_seed)
+
+
+
+
+                        counter = 0
+
+                        # print(idxs[:volume_of_val_data+volume_of_train_data+volume_of_test_data], ftype)
+
+                        for index in tqdm(idxs[:volume_of_val_data+volume_of_train_data+volume_of_test_data]):
+                            if counter < volume_of_train_data:
+                                output_data_train[counter, :] = input_data[index, :]
+                                # print(index)
+                            elif counter < (volume_of_val_data + volume_of_train_data):
+                                output_data_val[counter-volume_of_train_data, :] = input_data[index, :]
+                                # print(index)
+                            elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data):
+                                output_data_test[counter-volume_of_train_data - volume_of_val_data, :] = input_data[index, :]
+                                # print(index)
+                            counter += 1
 
 
 
