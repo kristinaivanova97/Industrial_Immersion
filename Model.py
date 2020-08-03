@@ -30,7 +30,7 @@ class GetIndices:
 
     def __init__(self, ftype, data_dir):
         self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
-        self.file_hdf = data_dir + 'ids_all_' + ftype + '.hdf5'
+        self.file_hdf = data_dir + ftype + '.hdf5'
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []
@@ -60,28 +60,27 @@ class GetIndices:
             self.input_ids = f['input_ids'][:,:]
             self.input_mask = f['input_mask'][:,:]
             self.label_ids = f['label_ids'][:,:]
-            f.close()
 
 
-    def get_labels(self, filename):
-
-        # *** not nessesary as wont't be used later ***
-        my_file = open(filename, 'r') # 'Labels.txt'
-        y_label = []
-        for line in my_file:
-            stripped_line = line.strip()
-            line_list = stripped_line.split()
-            y_label.append(line_list)
-        my_file.close()
-        print("Size of y_label = ", len(y_label))
-        print("*** pleminary labels are created ***")
-
-        return y_label
+    # def get_labels(self, filename):
+    #
+    #     # *** not nessesary as wont't be used later ***
+    #     my_file = open(filename, 'r') # 'Labels.txt'
+    #     y_label = []
+    #     for line in my_file:
+    #         stripped_line = line.strip()
+    #         line_list = stripped_line.split()
+    #         y_label.append(line_list)
+    #     my_file.close()
+    #     print("Size of y_label = ", len(y_label))
+    #     print("*** pleminary labels are created ***")
+    #
+    #     return y_label
 
 class TsyaModel:
 
 
-    def __init__(self, weight_path = None, train_from_chk = False, device = device):
+    def __init__(self, weight_path=None, train_from_chk=False, device=device):
 
         self.weight_path = weight_path
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
@@ -127,9 +126,9 @@ class TsyaModel:
 
     def _dataset(self, data_processor):
 
-        dataset = TensorDataset(torch.tensor(data_processor.input_ids),
-                                torch.tensor(data_processor.input_mask),
-                                torch.tensor(data_processor.label_ids))
+        dataset = TensorDataset(torch.tensor(torch.from_numpy(data_processor.input_ids)),
+                                torch.tensor(torch.from_numpy(data_processor.input_mask)),
+                                torch.tensor(torch.from_numpy(data_processor.label_ids)))
 
 
 
@@ -204,10 +203,15 @@ class TsyaModel:
                 b_labels = batch[2].to(device)
                 self.model.zero_grad()
 
+                # print(b_input_ids, type(b_input_ids), type(b_input_ids[0][0]))
+                # print(b_input_mask)
+                # print(b_labels)
+
+
                 loss, logits = self.model(b_input_ids,
                                           token_type_ids=None,  # b_segment,
                                           attention_mask=b_input_mask,
-                                          labels=b_labels)
+                                          labels=b_labels.to(dtype=torch.long))
 
                 total_train_loss += loss.item()
                 loss.backward()

@@ -233,12 +233,12 @@ def to_train_val_test_hdf(data_dir, output_dir, volume_of_train_data, volume_of_
                     dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
 
                     for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
-                        output_data_train = file_train.create_dataset(ftype, (200000, 512), maxshape=(1000000, 512),
+                        output_data_train = file_train.create_dataset(ftype, (100000, 512), maxshape=(1000000, 512),
                                                                       dtype=dtype_dict[ftype])
 
-                        output_data_val = file_val.create_dataset(ftype, (21000, 512), maxshape=(25000, 512),
+                        output_data_val = file_val.create_dataset(ftype, (20000, 512), maxshape=(25000, 512),
                                                                   dtype=dtype_dict[ftype])
-                        output_data_test = file_test.create_dataset(ftype, (21000, 512), maxshape=(25000, 512),
+                        output_data_test = file_test.create_dataset(ftype, (20000, 512), maxshape=(25000, 512),
                                                                     dtype=dtype_dict[ftype])
                         input_data = f[ftype]
 
