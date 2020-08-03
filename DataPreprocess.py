@@ -246,7 +246,7 @@ def main():
     # data_processor.process_batch()
     # data_processor.save_indices(ftype='data', data_dir = data_dir)
 
-    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', volume_of_train_data=100000, volume_of_val_data=20000, volume_of_test_data=20000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', volume_of_train_data=100000, volume_of_val_data=20000, volume_of_test_data=20000, random_seed=1)
 
     # to_train_val(data_path='./', output_path='./raw_data/', volume_of_train_data=0.8, volume_of_val_data=0.1, volume_of_test_data=0.1, random_seed=1)
     # to_choose_part_of_dataset(data_path='./raw_data/', output_path='./data/', volume_of_train_data=150000, volume_of_val_data=50000, volume_of_test_data=0)

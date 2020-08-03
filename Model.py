@@ -251,7 +251,7 @@ class TsyaModel:
                     (loss, logits) = self.model(b_input_ids,
                                                 token_type_ids=None,  # b_segment,
                                                 attention_mask=b_input_mask,
-                                                labels=b_labels)
+                                                labels=b_labels.to(dtype=torch.long))
 
                 total_eval_loss += loss.item()
                 logits = logits.detach().cpu().numpy()
