@@ -75,7 +75,25 @@ class TestPreprocess:
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
+    def check_contain_tsya_or_nn(self, data):
+        
+        data_with_tsya_or_nn = []
+        tsya_search = re.compile(r'тся\b')
+        tsiya_search = re.compile(r'ться\b')
+        nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
+        n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
 
+        for sentence in data:
+
+            places_with_tsya = tsya_search.search(sentence)
+            places_with_tisya = tsiya_search.search(sentence)
+            places_with_n = n_search.search(sentence)
+            places_with_nn = nn_search.search(sentence)
+
+            if (places_with_tsya is not None) or (places_with_tisya is not None) or (places_with_n is not None) or (places_with_nn is not None):
+                data_with_tsya_or_nn.append(sentence)
+
+        return data_with_tsya_or_nn
 
 class ProcessOutput:
 
