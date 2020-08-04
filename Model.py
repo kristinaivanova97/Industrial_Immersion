@@ -81,8 +81,8 @@ class TsyaModel:
 
 
     def __init__(self, weight_path=None, train_from_chk=False, device=device):
-
-        self.weight_path = weight_path
+        if not weight_path:
+            self.weight_path = weight_path
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
                       "[##]"]
         self.label_map = {}
