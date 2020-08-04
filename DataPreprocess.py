@@ -130,7 +130,7 @@ def main():
     # data_processor = DataPreprocess(path_to_file=path_to_data)
     # data_processor.process_batch()
 
-    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', volume_of_train_data=100000, volume_of_val_data=20000, volume_of_test_data=20000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":

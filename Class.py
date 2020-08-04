@@ -1,13 +1,17 @@
+import os
+import re
+import random
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
+from enum import Enum
+
 import h5py
 import numpy as np
-import re
 from transformers import BertTokenizer, BertForTokenClassification, BertConfig
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
-import random
+
 
 weight_path = "Chkpt.pth"
 batch_size = 16
@@ -15,21 +19,21 @@ max_seq_length = 512
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class TestPreprocess:
-    
-    def __init__(self):
+class Errors(int, Enum):
+    error_0 = 0
+    error_1 = 1
 
+
+class TestPreprocess:
+    def __init__(self):
         self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya",
                            "REPLACE_tsya",
                            "[##]"]
-        self.label_map = {}
-        for (i, label) in enumerate(self.label_list):
-            self.label_map[label] = i
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         
-    def process(self, text, max_seq_length = max_seq_length, batch_size = batch_size):
-
+    def process(self, text, max_seq_length=max_seq_length, batch_size=batch_size):
         input_ids_full = []
         attention_masks = []
         # label_ids_full = []
@@ -76,11 +80,35 @@ class TestPreprocess:
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
 
+    def check_contain_tsya_or_nn(self, data):
+
+        data_with_tsya_or_nn = []
+        tsya_search = re.compile(r'тся\b')
+        tsiya_search = re.compile(r'ться\b')
+        nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b',
+                               re.IGNORECASE)  # the words, which contain "н" in the middle or in the end of word
+        n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
+
+        for sentence in data:
+
+            places_with_tsya = tsya_search.search(sentence)
+            places_with_tisya = tsiya_search.search(sentence)
+            places_with_n = n_search.search(sentence)
+            places_with_nn = nn_search.search(sentence)
+
+            # if any([elem is not None for elem in [places_with_tsya, ]]):
+            #     data_with_tsya_or_nn.append(sentence)
+
+            if (places_with_tsya is not None) or (places_with_tisya is not None) or (places_with_n is not None) or (
+                    places_with_nn is not None):
+                data_with_tsya_or_nn.append(sentence)
+
+        return data_with_tsya_or_nn
 
 class ProcessOutput:
 
     def __init__(self):
-    
+
         self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
     def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text, message, error):
@@ -113,7 +141,7 @@ class ProcessOutput:
 
         step = 0
 
-        for i,predict in enumerate(predictions):
+        for i, predict in enumerate(predictions):
             for j, pred in enumerate(predict):
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
                 text = self._tokenizer.decode(input_ids[step, :nopad[step]])
@@ -218,7 +246,7 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-def to_train_val_test_hdf(data_dir, output_dir, volume_of_train_data, volume_of_val_data, volume_of_test_data, random_seed = 1):
+def to_train_val_test_hdf(data_dir, output_dir, train_part, val_part, test_part, length, random_seed = 1):
 
 
     if not data_dir:
@@ -227,34 +255,66 @@ def to_train_val_test_hdf(data_dir, output_dir, volume_of_train_data, volume_of_
     if not output_dir:
         output_dir = './data/'
 
-    with h5py.File(data_dir + 'ids_all.hdf5', 'r') as f:
-        with h5py.File(output_dir + 'train' + '.hdf5', 'w') as file_train:
-            with h5py.File(output_dir + 'val' + '.hdf5', 'w') as file_val:
-                with h5py.File(output_dir + 'test' + '.hdf5', 'w') as file_test:
-                    dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
+    parts = ["train", "val", "test"]
 
-                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
-                        output_data_train = file_train.create_dataset(ftype, (volume_of_train_data, 512), maxshape=(1000000, 512),
-                                                                      dtype=dtype_dict[ftype])
+    with h5py.File(os.path.join(data_dir, f"ids_all.hdf5"), 'r') as f:
+        for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+            dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
+            input_data = f[ftype]
 
-                        output_data_val = file_val.create_dataset(ftype, (volume_of_val_data, 512), maxshape=(25000, 512),
+            idxs = list(range(len(input_data)))
+
+            random.seed(random_seed)
+            random.shuffle(idxs)
+
+            # counter = 0
+
+
+
+            points = (
+                int(train_part * length),
+                int(train_part * length + val_part * length),
+                length
+            )
+
+            for params in zip(parts, (0,) + points[:-1], points):
+                part, start, end = params
+
+                with h5py.File(os.path.join(output_data, f"{part}.hdf5"), 'w') as file:
+                    output_data = file.create_dataset(ftype, (length, 512),
+                                                                  maxshape=(1000000, 512),
                                                                   dtype=dtype_dict[ftype])
-                        output_data_test = file_test.create_dataset(ftype, (volume_of_test_data, 512), maxshape=(25000, 512),
-                                                                    dtype=dtype_dict[ftype])
-                        input_data = f[ftype]
+                    output_data[:, :] = input_data[start:end][:, :]
 
-                        idxs = list(range(len(input_data)))
+        #
+        # with h5py.File(output_dir + 'train' + '.hdf5', 'w') as file_train:
+        #     with h5py.File(output_dir + 'val' + '.hdf5', 'w') as file_val:
+        #         with h5py.File(output_dir + 'test' + '.hdf5', 'w') as file_test:
+        #
+        #
+        #             for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+        #                 output_data_train = file_train.create_dataset(ftype, (volume_of_train_data, 512), maxshape=(1000000, 512),
+        #                                                               dtype=dtype_dict[ftype])
+        #
+        #                 output_data_val = file_val.create_dataset(ftype, (volume_of_val_data, 512), maxshape=(25000, 512),
+        #                                                           dtype=dtype_dict[ftype])
+        #                 output_data_test = file_test.create_dataset(ftype, (volume_of_test_data, 512), maxshape=(25000, 512),
+        #                                                             dtype=dtype_dict[ftype])
+        #                 input_data = f[ftype]
+        #
+        #                 idxs = list(range(len(input_data)))
+        #
+        #                 random.seed(random_seed)
+        #                 random.shuffle(idxs)
+        #
+        #                 counter = 0
+        #
+        #                 for index in tqdm(idxs[:volume_of_val_data+volume_of_train_data+volume_of_test_data]):
+        #                     if counter < volume_of_train_data:
+        #                         output_data_train[counter, :] = input_data[index, :]
+        #                     elif counter < (volume_of_val_data + volume_of_train_data):
+        #                         output_data_val[counter-volume_of_train_data, :] = input_data[index, :]
+        #                     elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data):
+        #                         output_data_test[counter-volume_of_train_data - volume_of_val_data, :] = input_data[index, :]
+        #                     counter += 1
 
-                        random.seed(random_seed)
-                        random.shuffle(idxs)
-
-                        counter = 0
-
-                        for index in tqdm(idxs[:volume_of_val_data+volume_of_train_data+volume_of_test_data]):
-                            if counter < volume_of_train_data:
-                                output_data_train[counter, :] = input_data[index, :]
-                            elif counter < (volume_of_val_data + volume_of_train_data):
-                                output_data_val[counter-volume_of_train_data, :] = input_data[index, :]
-                            elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data):
-                                output_data_test[counter-volume_of_train_data - volume_of_val_data, :] = input_data[index, :]
-                            counter += 1
