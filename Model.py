@@ -1,9 +1,7 @@
 import warnings
-
+warnings.filterwarnings('ignore', category=FutureWarning)
 import h5py
 from tqdm import tqdm
-
-warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import pandas as pd
 import torch

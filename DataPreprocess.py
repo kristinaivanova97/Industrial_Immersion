@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+
 import h5py
 from tqdm import tqdm
 from transformers import BertTokenizer
