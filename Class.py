@@ -13,9 +13,6 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 
-weight_path = "Chkpt.pth"
-batch_size = 16
-max_seq_length = 512
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -33,7 +30,7 @@ class TestPreprocess:
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         
-    def process(self, text, max_seq_length=max_seq_length, batch_size=batch_size):
+    def process(self, text, max_seq_length=512, batch_size=16):
         input_ids_full = []
         attention_masks = []
         # label_ids_full = []

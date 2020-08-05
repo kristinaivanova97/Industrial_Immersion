@@ -1,16 +1,16 @@
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-import h5py
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import torch
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig
-from transformers import AdamW, get_linear_schedule_with_warmup
-from torch.utils.data import TensorDataset, random_split, DataLoader, RandomSampler, SequentialSampler
 import time
 import datetime
 import random
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+import h5py
+from tqdm import tqdm
+import numpy as np
+import torch
+from transformers import BertTokenizer, BertForTokenClassification
+from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.

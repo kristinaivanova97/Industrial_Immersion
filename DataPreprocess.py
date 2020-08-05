@@ -7,28 +7,17 @@ from transformers import BertTokenizer
 
 from Class import to_train_val_test_hdf
 
-path_to_train = '../../orpho/data/tsya_data/train_data_bklif.csv'
-path_to_val = '../../orpho/data/tsya_data/val_data_bklif.csv'
-path_to_train_labels = 'Labels.txt'
-path_to_val_labels = 'Val_labels.txt'
 
-label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-max_seq_length = 512
 data_dir = "./new_data/"
-path_to_data = "./dataset.txt"
 
 
-my_file = 'test.txt'
 class DataPreprocess:
     
     def __init__(self, path_to_file):
 
         label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
                       "[##]"]
-        self.label_map = {}
-        for (i, label) in enumerate(label_list):
-            self.label_map[label] = i
+        self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.file = path_to_file

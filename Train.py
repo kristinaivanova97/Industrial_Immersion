@@ -1,15 +1,6 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
-import numpy as np
-import pandas as pd
-import torch
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig
-from transformers import AdamW, get_linear_schedule_with_warmup
-from torch.utils.data import TensorDataset, random_split, DataLoader, RandomSampler, SequentialSampler
-import time
-import datetime
-import random
-from tqdm import tqdm
+
 from Model import GetIndices, TsyaModel
 
 batch_size = 1

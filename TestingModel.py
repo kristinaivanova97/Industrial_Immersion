@@ -1,18 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+import argparse
+import time
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
-import numpy as np
-import pandas as pd
-import re
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig
-from tqdm import tqdm
+
 import torch
-from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
-import time
+
 from Class import TestPreprocess, ProcessOutput
 from Model import TsyaModel
-import argparse
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
