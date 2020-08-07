@@ -96,7 +96,7 @@ class TsyaModel:
         )
 
         if train_from_chk:
-            self.model.load_state_dict(torch.load(self.weight_path))
+            self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 

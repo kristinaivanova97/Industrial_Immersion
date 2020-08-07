@@ -2,8 +2,8 @@ from Model import GetIndices, TsyaModel
 
 max_seq_length = 512 # for bert this limit exists
 data_dir = "./data_split/"
-chkp_path = "Chkpt_part_of_word.pth"
-
+#chkp_path = "Chkpt_part_of_word.pth"
+chkp_path = "Chkpt_full_labels.pth"
 '''
 DataProcessor = GetIndices(ftype = 'data', data_dir = data_dir)
 DataProcessor.upload()
