@@ -125,17 +125,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-
-"""
-# To check the max length of sentences in text
-# For every sentence...
-max_len = 0
-new = TrainProcessor.data['x'].str.strip()
-for sent in new:
-    # Tokenize the text and add `[CLS]` and `[SEP]` tokens.
-    input_ids = tokenizer.encode(sent, add_special_tokens=True)
-    max_len = max(max_len, len(input_ids))
-
-print('Max sentence length: ', max_len)
-"""

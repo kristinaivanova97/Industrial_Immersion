@@ -76,14 +76,12 @@ class TestPreprocess:
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
-
     def check_contain_tsya_or_nn(self, data):
 
         data_with_tsya_or_nn = []
         tsya_search = re.compile(r'тся\b')
         tsiya_search = re.compile(r'ться\b')
-        nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b',
-                               re.IGNORECASE)  # the words, which contain "н" in the middle or in the end of word
+        nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
         n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
 
         for sentence in data:
@@ -93,11 +91,7 @@ class TestPreprocess:
             places_with_n = n_search.search(sentence)
             places_with_nn = nn_search.search(sentence)
 
-            # if any([elem is not None for elem in [places_with_tsya, ]]):
-            #     data_with_tsya_or_nn.append(sentence)
-
-            if (places_with_tsya is not None) or (places_with_tisya is not None) or (places_with_n is not None) or (
-                    places_with_nn is not None):
+            if (places_with_tsya is not None) or (places_with_tisya is not None) or (places_with_n is not None) or (places_with_nn is not None):
                 data_with_tsya_or_nn.append(sentence)
 
         return data_with_tsya_or_nn
@@ -121,6 +115,8 @@ class ProcessOutput:
         print("Prediction = ", preds)
         print("Initial text = {} \n".format(initial_text))
         print("Correct text = {} \n".format(correct_text))
+        if len(error) == 0:
+            error = ['None']
         print("Mistake = {} \n".format(error))
 
     #def process(self, predictions, input_ids, nopad, data_tags, text_data):
@@ -138,7 +134,7 @@ class ProcessOutput:
 
         step = 0
 
-        for i, predict in enumerate(predictions):
+        for i,predict in enumerate(predictions):
             for j, pred in enumerate(predict):
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
                 text = self._tokenizer.decode(input_ids[step, :nopad[step]])
@@ -170,8 +166,8 @@ class ProcessOutput:
                         for i in range(len(replace_list)):
                             word = tokens[replace_list[i]]
                             k = 1
-                            #while preds[replace_list[i] + k] == 8: # ["##"]
-                            while preds[replace_list[i] + k] == preds[replace_list[i]]:
+                            while preds[replace_list[i] + k] == 8: # ["##"]
+                            #while preds[replace_list[i] + k] == preds[replace_list[i]]:
                                 index = replace_list[i] + k
                                 word += tokens[index][2:]
                                 k+=1

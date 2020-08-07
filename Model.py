@@ -10,14 +10,14 @@ import numpy as np
 import torch
 from transformers import BertTokenizer, BertForTokenClassification
 from transformers import AdamW, get_linear_schedule_with_warmup
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
-batch_size = 1
+batch_size = 7
 epochs = 3 # The BERT authors recommend between 2 and 4.
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-print(f"Device: {device}")
+print("Device: {}".format(device))
 
 
 class GetIndices:
@@ -91,7 +91,7 @@ class TsyaModel:
         )
 
         if train_from_chk:
-            self.model.load_state_dict(torch.load(self.weight_path))
+            self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
@@ -118,27 +118,28 @@ class TsyaModel:
         return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
 
 
-    def _dataset(self, data_processor):
+    def _dataset(self, train_processor, val_processor):
 
-        dataset = TensorDataset(torch.tensor(torch.from_numpy(data_processor.input_ids)),
-                                torch.tensor(torch.from_numpy(data_processor.input_mask)),
-                                torch.tensor(torch.from_numpy(data_processor.label_ids)))
+        dataset = TensorDataset(torch.from_numpy(train_processor.input_ids),
+                                torch.from_numpy(train_processor.input_mask),
+                                torch.from_numpy(train_processor.label_ids))
 
+        val_dataset = TensorDataset(torch.from_numpy(val_processor.input_ids),
+                                    torch.from_numpy(val_processor.input_mask),
+                                    torch.from_numpy(val_processor.label_ids))
 
+        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
+        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
 
-        dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        print("Train loader has been loaded")
-
-        return dataloader
+        return train_dataloader, validation_dataloader
 
 
     def train(self, chkp_path, train_data_processor, val_data_processor):
         if not chkp_path:
             chkp_path = self.weight_path
 
-        train_dataloader = self._dataset(data_processor=train_data_processor)
+        train_dataloader, validation_dataloader = self._dataset(train_data_processor, val_data_processor)
 
-        validation_dataloader = self._dataset(data_processor=val_data_processor)
         print("Dataloader is created")
 
         total_steps = len(train_dataloader) * epochs

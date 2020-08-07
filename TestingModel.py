@@ -9,7 +9,7 @@ from Class import TestPreprocess, ProcessOutput
 from Model import TsyaModel
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Device: {device}")
+#print(f"Device: {device}")
 weight_path = "Chkpt_full_labels.pth"
 
     
