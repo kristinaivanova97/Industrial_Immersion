@@ -14,14 +14,10 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
-max_seq_length = 512 # for bert this limit exists
-
-data_dir = "./new_data/"
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 print(f"Device: {device}")
-weight_path = "Chkpt_test.pth"
 
 
 class GetIndices:
@@ -140,26 +136,26 @@ class TsyaModel:
         if not chkp_path:
             chkp_path = self.weight_path
 
-        self.train_dataloader = self._dataset(data_processor=train_data_processor)
+        train_dataloader = self._dataset(data_processor=train_data_processor)
 
-        self.validation_dataloader = self._dataset(data_processor=val_data_processor)
+        validation_dataloader = self._dataset(data_processor=val_data_processor)
         print("Dataloader is created")
 
-        total_steps = len(self.train_dataloader) * epochs
+        total_steps = len(train_dataloader) * epochs
 
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
+        scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
                                                          num_training_steps=total_steps)
 
-        self.params = list(self.model.named_parameters())
+        params = list(self.model.named_parameters())
 
         print('==== Embedding Layer ====\n')
 
-        for p in self.params[0:5]:
+        for p in params[0:5]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
 
         print('\n==== Output Layer ====\n')
 
-        for p in self.params[-4:]:
+        for p in params[-4:]:
             print("{:<55} {:>12}".format(p[0], str(tuple(p[1].size()))))
 
         random.seed(self.seed_val)
@@ -186,25 +182,20 @@ class TsyaModel:
             # vs. test (source: https://stackoverflow.com/questions/51433378/what-does-model-train-do-in-pytorch)
             self.model.train()
 
-            for step, batch in enumerate(self.train_dataloader):
+            for step, batch in enumerate(train_dataloader):
                 # Progress update every 40 batches.
                 if step % 40 == 0 and not step == 0:
                     # Calculate elapsed time in minutes.
                     elapsed = self.format_time(time.time() - t0)
 
                     # Report progress.
-                    print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(self.train_dataloader),
+                    print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader),
                                                                                 elapsed))
 
                 b_input_ids = batch[0].to(device)
                 b_input_mask = batch[1].to(device)
                 b_labels = batch[2].to(device)
                 self.model.zero_grad()
-
-                # print(b_input_ids, type(b_input_ids), type(b_input_ids[0][0]))
-                # print(b_input_mask)
-                # print(b_labels)
-
 
                 loss, logits = self.model(b_input_ids,
                                           token_type_ids=None,  # b_segment,
@@ -217,8 +208,8 @@ class TsyaModel:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 
                 self.optimizer.step()
-                self.scheduler.step()
-            avg_train_loss = total_train_loss / len(self.train_dataloader)
+                scheduler.step()
+            avg_train_loss = total_train_loss / len(train_dataloader)
 
             training_time = self.format_time(time.time() - t0)
 
@@ -238,7 +229,7 @@ class TsyaModel:
             nb_eval_steps = 0
 
             # Evaluate data for one epoch
-            for batch in self.validation_dataloader:
+            for batch in validation_dataloader:
                 b_input_ids = batch[0].to(device)
                 b_input_mask = batch[1].to(device)
                 b_labels = batch[2].to(device)
@@ -263,11 +254,11 @@ class TsyaModel:
             print("Last true = ", part_true)
             print("Last prediction", part)
 
-            avg_val_accuracy = total_eval_accuracy / len(self.validation_dataloader)
+            avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
             print("  Accuracy: {0:.3f}".format(avg_val_accuracy))
 
             # Calculate the average loss over all of the batches.
-            avg_val_loss = total_eval_loss / len(self.validation_dataloader)
+            avg_val_loss = total_eval_loss / len(validation_dataloader)
 
             # Measure how long the validation run took.
             validation_time = self.format_time(time.time() - t0)

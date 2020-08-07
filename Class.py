@@ -243,7 +243,8 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-def to_train_val_test_hdf(data_dir, output_dir, train_part, val_part, test_part, length, random_seed = 1):
+def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
+                          val_part = 0.2, test_part = 0.2, length = 10000, random_seed = 1):
 
 
     if not data_dir:
@@ -265,8 +266,6 @@ def to_train_val_test_hdf(data_dir, output_dir, train_part, val_part, test_part,
             random.shuffle(idxs)
 
             # counter = 0
-
-
 
             points = (
                 int(train_part * length),
