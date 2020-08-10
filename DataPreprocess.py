@@ -45,7 +45,7 @@ class DataPreprocess:
                     else:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
-                                                                                              part_of_word=True)
+                                                                                              part_of_word=False)
 
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
@@ -117,9 +117,9 @@ class DataPreprocess:
 
 def main():
 
-    # path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
-    # data_processor = DataPreprocess(path_to_file=path_to_data)
-    # data_processor.process_batch()
+    path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
+    data_processor = DataPreprocess(path_to_file=path_to_data)
+    data_processor.process_batch()
 
     to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 

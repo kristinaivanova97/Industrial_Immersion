@@ -166,8 +166,15 @@ class ProcessOutput:
                         for i in range(len(replace_list)):
                             word = tokens[replace_list[i]]
                             k = 1
-                            while preds[replace_list[i] + k] == 8: # ["##"]
-                            #while preds[replace_list[i] + k] == preds[replace_list[i]]:
+                            #while preds[replace_list[i] + k] == 8: # ["##"]
+                            if '##' in word:
+                                while '##' in tokens[replace_list[i]-k]:
+                                    word = tokens[replace_list[i]-k]+word[2:]
+                                    k += 1
+                                word = tokens[replace_list[i]-k] + word[2:]
+                                print(word)
+                            k = 1
+                            while preds[replace_list[i] + k] == preds[replace_list[i]] or ('##' in tokens[replace_list[i]+k]):
                                 index = replace_list[i] + k
                                 word += tokens[index][2:]
                                 k+=1
