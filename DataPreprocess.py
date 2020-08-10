@@ -8,7 +8,7 @@ from transformers import BertTokenizer
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./new_data/"
+data_dir = "./new_data_with_full_label/"
 
 
 class DataPreprocess:
@@ -59,6 +59,8 @@ class DataPreprocess:
                     line_list = stripped_line.split()
 
                     pbar.update(1)
+                    if i == 1000:
+                        break
 
                 pbar.close()
 
