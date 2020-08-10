@@ -11,7 +11,7 @@ chkp_path = "Chkpt_full_labels.pth"
 
 def main():
 
-    train_data_processor = GetIndices(ftype = 'train', data_dir='./data/')
+    train_data_processor = GetIndices(ftype = 'train', data_dir=data_dir)
     train_data_processor.upload_hdf()
     assert len(train_data_processor.input_ids[0]) == max_seq_length
     assert len(train_data_processor.input_mask[0]) == max_seq_length
@@ -21,7 +21,7 @@ def main():
     print("Num of sequences = ", len(train_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-    val_data_processor = GetIndices(ftype='val', data_dir='./data/')
+    val_data_processor = GetIndices(ftype='val', data_dir=data_dir)
     val_data_processor.upload_hdf()
     assert len(val_data_processor.input_ids[0]) == max_seq_length
     assert len(val_data_processor.input_mask[0]) == max_seq_length

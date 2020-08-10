@@ -115,7 +115,7 @@ class DataPreprocess:
 
 def main():
 
-    # path_train_data = "./dataset.txt"
+    # path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
     # data_processor = DataPreprocess(path_to_file=path_to_data)
     # data_processor.process_batch()
 
