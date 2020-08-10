@@ -1,3 +1,4 @@
+import torch
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -7,11 +8,11 @@ batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
 data_dir = "./data_split/"
-chkp_path = "Chkpt_full_labels.pth"
+chkp_path = "Chkpt_part_full_miron.pth"
 
 def main():
 
-    train_data_processor = GetIndices(ftype = 'train', data_dir='./data/')
+    train_data_processor = GetIndices(ftype = 'train', data_dir='./data_2/')
     train_data_processor.upload_hdf()
     assert len(train_data_processor.input_ids[0]) == max_seq_length
     assert len(train_data_processor.input_mask[0]) == max_seq_length
@@ -21,7 +22,7 @@ def main():
     print("Num of sequences = ", len(train_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-    val_data_processor = GetIndices(ftype='val', data_dir='./data/')
+    val_data_processor = GetIndices(ftype='val', data_dir='./data_2/')
     val_data_processor.upload_hdf()
     assert len(val_data_processor.input_ids[0]) == max_seq_length
     assert len(val_data_processor.input_mask[0]) == max_seq_length
@@ -38,4 +39,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+    # print(torch.cuda.current_device())
+    # print(torch.cuda.device_count())
+    # print(torch.cuda.get_device_name(0))
+    # print(torch.cuda.is_available())
