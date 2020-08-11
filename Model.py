@@ -12,7 +12,7 @@ from transformers import BertTokenizer, BertForTokenClassification
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
-batch_size = 7
+batch_size = 6
 epochs = 3 # The BERT authors recommend between 2 and 4.
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -77,8 +77,8 @@ class TsyaModel:
     def __init__(self, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
-        self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
-                      "[##]"]
+        #self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
+        self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
