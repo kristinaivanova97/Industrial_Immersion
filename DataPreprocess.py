@@ -1,32 +1,35 @@
+import json
+
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 import h5py
 from tqdm import tqdm
-from transformers import BertTokenizer
+from transformers import BertTokenizer, AutoTokenizer
 
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./new_data_with_full_label/"
-
-
 class DataPreprocess:
     
-    def __init__(self, path_to_file):
-
-        label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
-                      "[##]"]
+    def __init__(self):
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        label_list = config['label_list']
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        self.file = path_to_file
+        if config['from_bert']:
+            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
 
+        self.file = config['path_train_data_full_conll']
+        self.data_dir = config['data_dir_with_full_labels_hdf']
 
     def process_batch(self):
 
         with open(self.file, 'r', encoding='utf-8') as file:
-            with h5py.File(data_dir + 'ids_all.hdf5', 'w') as f:
+            with h5py.File(self.data_dir + 'ids_all.hdf5', 'w') as f:
                 dset_input_ids = f.create_dataset("input_ids", (1200000, 512), maxshape=(1500000,512), dtype='i8')
                 dset_input_mask = f.create_dataset("input_mask", (1200000, 512), maxshape=(1500000,512), dtype='i1')
                 dset_label_ids = f.create_dataset("label_ids", (1200000, 512), maxshape=(1500000,512), dtype='i1')
@@ -117,8 +120,7 @@ class DataPreprocess:
 
 def main():
 
-    # path_train_data = "./dataset.txt"
-    # data_processor = DataPreprocess(path_to_file=path_train_data)
+    # data_processor = DataPreprocess()
     # data_processor.process_batch()
 
     to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
