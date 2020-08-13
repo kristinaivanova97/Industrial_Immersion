@@ -8,7 +8,7 @@ batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
 data_dir = "./data_split/"
-chkp_path = "Chkpt_part_full_miron.pth"
+chkp_path = "Chkpt_full_labels.pth"
 
 def main():
 

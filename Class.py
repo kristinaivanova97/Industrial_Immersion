@@ -164,21 +164,28 @@ class ProcessOutput:
                 list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
                 list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
 
-                for k,replace_list in enumerate(list_of_replace_indeces):
+                for n,replace_list in enumerate(list_of_replace_indeces):
 
                     if len(replace_list) > 0:
                         message = ["Incorrect"]
                         for l in range(len(replace_list)):
                             word = tokens[replace_list[l]]
                             k = 1
-                            while preds[replace_list[l] + k] == 8: # ["##"]
-                            #while preds[replace_list[l] + k] == preds[replace_list[i]]:
+                            #while preds[replace_list[i] + k] == 8: # ["##"]
+                            if '##' in word:
+                                while '##' in tokens[replace_list[l]-k]:
+                                    word = tokens[replace_list[l]-k]+word[2:]
+                                    k += 1
+                                word = tokens[replace_list[l]-k] + word[2:]
+                                print(word)
+                            k = 1
+                            while preds[replace_list[l] + k] == preds[replace_list[l]] or ('##' in tokens[replace_list[l]+k]):
                                 index = replace_list[l] + k
                                 word += tokens[index][2:]
                                 k+=1
                             if '##' not in word:
                                 incorrect_words.append(word)
-                                list_of_words_with_mistake[k].append(word)
+                                list_of_words_with_mistake[n].append(word)
 
                 for word in incorrect_words_tisya:
                     error.append("Тся -> ться")
