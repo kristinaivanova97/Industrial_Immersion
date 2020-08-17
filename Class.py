@@ -288,6 +288,14 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
                                                                       maxshape=(1000000, 512),
                                                                       dtype=dtype_dict[ftype])
                         for index in tqdm(idxs[start:end]):
+
+                            '''
+                            if ftype == 'label_ids':
+                                buffer = [-100 if x in [0, 1, 2, 8] else x for x in input_data[index, :]]
+                            else:
+                                buffer = input_data[index, :]
+                            output_data[counter, :] = buffer
+                            '''
                             output_data[counter, :] = input_data[index, :]
                             counter += 1
 

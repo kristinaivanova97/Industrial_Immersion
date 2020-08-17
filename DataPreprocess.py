@@ -15,8 +15,7 @@ class DataPreprocess:
     
     def __init__(self, path_to_file):
 
-        #label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-        label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
@@ -59,9 +58,6 @@ class DataPreprocess:
                     line_list = stripped_line.split()
 
                     pbar.update(1)
-                    if i == 1000:
-                        break
-
                 pbar.close()
 
 
@@ -82,8 +78,7 @@ class DataPreprocess:
                     if m == 0:
                         labels.append(word_label)
                     else:
-                        #labels.append("[##]")
-                        labels.append("[PAD]")
+                        labels.append("[##]")
                 else:
                     labels.append(word_label)
 
@@ -93,10 +88,7 @@ class DataPreprocess:
         ntokens = []
         label_ids = []
         ntokens.append("[CLS]")
-        input_mask = []
-        input_mask.append(1)
-        #label_ids.append(self.label_map["[CLS]"])
-        label_ids.append(0)
+        label_ids.append(self.label_map["[CLS]"])
         for i, token in enumerate(tokens):
             ntokens.append(token)
             '''
@@ -106,20 +98,17 @@ class DataPreprocess:
                 label_ids.append(self.label_map[labels[i]])
             '''
             label_ids.append(self.label_map[labels[i]])
-            input_mask.append(1)
 
         ntokens.append("[SEP]")
-        input_mask.append(1)
         nopad.append(len(ntokens))
-        #label_ids.append(self.label_map["[SEP]"])
-        label_ids.append(0)
+        label_ids.append(self.label_map["[SEP]"])
         input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
-        #input_mask = [1] * len(input_ids)
+        input_mask = [1] * len(input_ids)
 
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
             input_mask.append(0)
-            label_ids.append(0) #ignore index
+            label_ids.append(0)
             ntokens.append("[PAD]")
 
         assert len(input_ids) == max_seq_length
@@ -136,7 +125,7 @@ def main():
     data_processor.process_batch()
 
 
-    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
+    # to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
 
 
 if __name__ == "__main__":
