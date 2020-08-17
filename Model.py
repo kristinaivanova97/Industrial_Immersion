@@ -246,7 +246,7 @@ class TsyaModel:
                 total_eval_loss += loss.item()
                 logits = logits.detach().cpu().numpy()
                 label_ids = b_labels.to('cpu').numpy()
-
+                print(label_ids, logits)
                 total_eval_accuracy += self.flat_accuracy(logits, label_ids)
             print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
             last = np.argmax(logits, axis=2)

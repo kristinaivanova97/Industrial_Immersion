@@ -163,19 +163,19 @@ class ProcessOutput:
 
                     if len(replace_list) > 0:
                         message = ["Incorrect"]
-                        for i in range(len(replace_list)):
-                            word = tokens[replace_list[i]]
+                        for ids in range(len(replace_list)):
+                            word = tokens[replace_list[ids]]
                             k = 1
-                            #while preds[replace_list[i] + k] == 8: # ["##"]
+                            #while preds[replace_list[ids] + k] == 8: # ["##"]
                             if '##' in word:
-                                while '##' in tokens[replace_list[i]-k]:
-                                    word = tokens[replace_list[i]-k]+word[2:]
+                                while '##' in tokens[replace_list[ids]-k]:
+                                    word = tokens[replace_list[ids]-k]+word[2:]
                                     k += 1
-                                word = tokens[replace_list[i]-k] + word[2:]
+                                word = tokens[replace_list[ids]-k] + word[2:]
                                 print(word)
                             k = 1
-                            while preds[replace_list[i] + k] == preds[replace_list[i]] or ('##' in tokens[replace_list[i]+k]):
-                                index = replace_list[i] + k
+                            while '##' in tokens[replace_list[i]+k]:
+                                index = replace_list[ids] + k
                                 word += tokens[index][2:]
                                 k+=1
                             if '##' not in word:
