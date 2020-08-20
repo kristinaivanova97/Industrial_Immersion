@@ -8,7 +8,7 @@ import h5py
 from tqdm import tqdm
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForTokenClassification
+from transformers import BertTokenizer, BertForTokenClassification, AutoTokenizer, AutoModelWithLMHead
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
@@ -83,8 +83,7 @@ class TsyaModel:
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
 
-        self.model = BertForTokenClassification.from_pretrained(
-            'bert-base-multilingual-cased',
+        self.model = AutoModelWithLMHead.from_pretrained("DeepPavlov/rubert-base-cased",
             num_labels=len(self.label_list),
             output_attentions=False,
             output_hidden_states=False,
@@ -93,7 +92,7 @@ class TsyaModel:
         if train_from_chk:
             self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
 
         self.optimizer = AdamW(self.model.parameters(),
                           lr = 2e-5, # args.learning_rate - default is 5e-5

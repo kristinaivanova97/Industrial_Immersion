@@ -7,7 +7,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 
 import h5py
 from tqdm import tqdm
-from transformers import BertTokenizer
+from transformers import BertTokenizer, AutoTokenizer
 
 
 
@@ -22,7 +22,7 @@ class DataPreprocess:
         label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
         self.file = path_to_file
 
 
@@ -180,7 +180,7 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 def main():
 
-    path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
+    path_to_data = "dataset_plus_correct.txt"
     data_processor = DataPreprocess(path_to_file=path_to_data)
     data_processor.process_batch()
 

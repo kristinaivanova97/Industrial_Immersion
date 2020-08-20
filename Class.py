@@ -7,7 +7,7 @@ from enum import Enum
 
 import h5py
 import numpy as np
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig
+from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoTokenizer
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
@@ -28,7 +28,7 @@ class TestPreprocess:
                            "[##]"]
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
         
     def process(self, text, max_seq_length=512, batch_size=16):
         input_ids_full = []
@@ -100,7 +100,7 @@ class ProcessOutput:
 
     def __init__(self):
 
-        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self._tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
 
     def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text, message, error):
         print("Tokens = ", tokens, file=file_name)
