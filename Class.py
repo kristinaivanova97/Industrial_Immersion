@@ -246,50 +246,6 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
-                          val_part = 0.2, test_part = 0.2, length = 10000, random_seed = 1):
-
-
-    if not data_dir:
-        data_dir = './new_data/'
-
-    if not output_dir:
-        output_dir = './data/'
-
-    parts = ["train", "val", "test"]
-
-    with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
-
-            input_data = f['input_ids']
-
-            idxs = list(range(len(input_data)))
-
-            random.seed(random_seed)
-            random.shuffle(idxs)
-
-            # counter = 0
-
-            points = (
-                int(train_part * length),
-                int(train_part * length + val_part * length),
-                length
-            )
-
-            for params in zip(parts, (0,) + points[:-1], points):
-
-                part, start, end = params
-                with h5py.File(os.path.join(output_dir, f"{part}.hdf5"), 'w') as file:
-
-                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
-                        counter = 0
-                        dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
-                        input_data = f[ftype]
-                        output_data = file.create_dataset(ftype, (end-start, 512),
-                                                                      maxshape=(1000000, 512),
-                                                                      dtype=dtype_dict[ftype])
-                        for index in tqdm(idxs[start:end]):
-                            output_data[counter, :] = input_data[index, :]
-                            counter += 1
 
         #
         # with h5py.File(output_dir + 'train' + '.hdf5', 'w') as file_train:

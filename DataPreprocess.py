@@ -1,3 +1,7 @@
+import os
+
+import random
+
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -5,7 +9,6 @@ import h5py
 from tqdm import tqdm
 from transformers import BertTokenizer
 
-from Class import to_train_val_test_hdf
 
 
 data_dir = "./new_data_pow/"
@@ -59,8 +62,6 @@ class DataPreprocess:
                     line_list = stripped_line.split()
 
                     pbar.update(1)
-                    if i == 1000:
-                        break
 
                 pbar.close()
 
@@ -129,6 +130,54 @@ class DataPreprocess:
         return input_ids, input_mask, label_ids, nopad
 
 
+def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
+                          val_part = 0.2, test_part = 0.2, length = 10000, random_seed = 1):
+
+
+    if not data_dir:
+        data_dir = './new_data/'
+
+    if not output_dir:
+        output_dir = './data/'
+
+    parts = ["train", "val", "test"]
+
+    with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
+
+            input_data = f['input_ids']
+
+            idxs = list(range(len(input_data)))
+
+            random.seed(random_seed)
+            random.shuffle(idxs)
+
+            # counter = 0
+
+            points = (
+                int(train_part * length),
+                int(train_part * length + val_part * length),
+                length
+            )
+
+            for params in zip(parts, (0,) + points[:-1], points):
+
+                part, start, end = params
+                with h5py.File(os.path.join(output_dir, f"{part}.hdf5"), 'w') as file:
+
+                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+                        counter = 0
+                        dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
+                        input_data = f[ftype]
+                        output_data = file.create_dataset(ftype, (end-start, 512),
+                                                                      maxshape=(1000000, 512),
+                                                                      dtype=dtype_dict[ftype])
+                        for index in tqdm(idxs[start:end]):
+                            a = input_data[index, :]
+                            output_data[counter, :] = input_data[index, :]
+                            counter += 1
+
+
+
 def main():
 
     path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
@@ -136,7 +185,7 @@ def main():
     data_processor.process_batch()
 
 
-    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
+    # to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
 
 
 if __name__ == "__main__":
