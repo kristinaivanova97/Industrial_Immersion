@@ -8,7 +8,7 @@ from transformers import BertTokenizer
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./new_data_pow/"
+data_dir = "./new_data_with_full_label/"
 
 
 class DataPreprocess:
@@ -125,7 +125,7 @@ def main():
     data_processor.process_batch()
 
 
-    # to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
+    #to_train_val_test_hdf(data_dir='./new_data_with_full_label/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":

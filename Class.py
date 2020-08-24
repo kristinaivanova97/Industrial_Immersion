@@ -121,13 +121,8 @@ class ProcessOutput:
 
     #def process(self, predictions, input_ids, nopad, data_tags, text_data):
     def process(self, predictions, input_ids, nopad, text_data):
-        # with open('results.txt', 'w') as file_name:
-        tokens = []
-        text = []
-        fine_text = ''
-        preds = []
-        correct_text_full = ''
 
+        correct_text_full = ''
         incorrect_words_from_sentences = []
         all_messages = []
         all_errors = []
@@ -137,7 +132,7 @@ class ProcessOutput:
         for i,predict in enumerate(predictions):
             for j, pred in enumerate(predict):
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
-                text = self._tokenizer.decode(input_ids[step, :nopad[step]])
+                # text = self._tokenizer.decode(input_ids[step, :nopad[step]])
                 # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
                 initial_text = text_data[step]
                 #tags =  np.array(data_tags[step][:nopad[step]])
@@ -155,6 +150,11 @@ class ProcessOutput:
                 replace_tisya = np.where(preds==6)[0].tolist()
                 replace_n = np.where(preds==5)[0].tolist()
                 replace_nn = np.where(preds==4)[0].tolist()
+                # replace_tsya = np.where(preds==4)[0].tolist()
+                # replace_tisya = np.where(preds==3)[0].tolist()
+                # replace_n = np.where(preds==2)[0].tolist()
+                # replace_nn = np.where(preds==1)[0].tolist()
+
 
                 list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
                 list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
@@ -174,7 +174,7 @@ class ProcessOutput:
                                 word = tokens[replace_list[ids]-k] + word[2:]
                                 print(word)
                             k = 1
-                            while '##' in tokens[replace_list[i]+k]:
+                            while '##' in tokens[replace_list[ids]+k]:
                                 index = replace_list[ids] + k
                                 word += tokens[index][2:]
                                 k+=1
@@ -184,24 +184,31 @@ class ProcessOutput:
 
                 for word in incorrect_words_tisya:
                     error.append("Тся -> ться")
-                    word_correct = word.replace('тся', 'ться')
+                    #word_correct = word.replace('тся', 'ться')
+                    word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
                     correct_text = correct_text.replace(word, word_correct)
 
                 for word in incorrect_words_tsya:
                     error.append("Ться -> тся")
-                    word_correct = word.replace('ться', 'тся')
+                    #word_correct = word.replace('ться', 'тся')
+                    word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
                     correct_text = correct_text.replace(word, word_correct)
-
+                #TODO: добавить случаи с заглавными буквами и с капсом
+                pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)',
+                                           re.IGNORECASE)
+                pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
                 pattern_nn = re.compile(r'(?-i:нн)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
                 pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
                 for word in incorrect_words_n:
                     error.append("нн -> н")
+                    word = pattern_nn_cased.sub('Н', word)
                     word_correct = pattern_nn.sub('н', word)
                     #word_correct = word.replace('нн', 'н')
                     correct_text = correct_text.replace(word, word_correct)
 
                 for word in incorrect_words_nn:
                     error.append("н -> нн")
+                    word = pattern_n_cased.sub('НН', word)
                     word_correct = pattern_n.sub('нн', word)
                     #word_correct = word.replace('н', 'нн')
                     correct_text = correct_text.replace(word, word_correct)
@@ -289,14 +296,15 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
                                                                       dtype=dtype_dict[ftype])
                         for index in tqdm(idxs[start:end]):
 
-                            '''
                             if ftype == 'label_ids':
-                                buffer = [-100 if x in [0, 1, 2, 8] else x for x in input_data[index, :]]
+                                buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
+                                print(buffer)
                             else:
                                 buffer = input_data[index, :]
                             output_data[counter, :] = buffer
-                            '''
-                            output_data[counter, :] = input_data[index, :]
+
+
+                            #output_data[counter, :] = input_data[index, :]
                             counter += 1
 
         #
