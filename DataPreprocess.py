@@ -2,6 +2,8 @@ import os
 
 import random
 
+import json
+
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -11,25 +13,26 @@ from transformers import BertTokenizer, AutoTokenizer
 
 
 
-data_dir = "./new_data_pow/"
-
-
 class DataPreprocess:
     
-    def __init__(self, path_to_file):
-
-        #label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-        label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[CLS]", "[SEP]"]
+    def __init__(self):
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        label_list = config['label_list']
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
-        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
-        self.file = path_to_file
+        if config['from_bert']:
+            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
 
+        self.file = config['path_train_data_full_conll']
+        self.data_dir = config['data_dir_with_full_labels_hdf']
 
     def process_batch(self):
 
         with open(self.file, 'r', encoding='utf-8') as file:
-            with h5py.File(data_dir + 'ids_all.hdf5', 'w') as f:
+            with h5py.File(self.data_dir + 'ids_all.hdf5', 'w') as f:
                 dset_input_ids = f.create_dataset("input_ids", (1200000, 512), maxshape=(1500000,512), dtype='i8')
                 dset_input_mask = f.create_dataset("input_mask", (1200000, 512), maxshape=(1500000,512), dtype='i1')
                 dset_label_ids = f.create_dataset("label_ids", (1200000, 512), maxshape=(1500000,512), dtype='i1')
@@ -48,7 +51,7 @@ class DataPreprocess:
                     else:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
-                                                                                              part_of_word=True)
+                                                                                              part_of_word=False)
 
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
@@ -112,8 +115,8 @@ class DataPreprocess:
         ntokens.append("[SEP]")
         input_mask.append(1)
         nopad.append(len(ntokens))
-        #label_ids.append(self.label_map["[SEP]"])
-        label_ids.append(0)
+        label_ids.append(self.label_map["[SEP]"])
+        # label_ids.append(0)
         input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
         #input_mask = [1] * len(input_ids)
 
@@ -180,12 +183,10 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 def main():
 
-#    path_to_data = "dataset_plus_correct.txt"
-#    data_processor = DataPreprocess(path_to_file=path_to_data)
-#    data_processor.process_batch()
+    # data_processor = DataPreprocess()
+    # data_processor.process_batch()
 
-
-    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=140000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":

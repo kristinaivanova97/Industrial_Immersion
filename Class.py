@@ -1,3 +1,5 @@
+import json
+
 import os
 import re
 import random
@@ -7,7 +9,7 @@ from enum import Enum
 
 import h5py
 import numpy as np
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoTokenizer
+from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoModelWithLMHead, AutoTokenizer
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
@@ -23,11 +25,16 @@ class Errors(int, Enum):
 
 class TestPreprocess:
     def __init__(self):
-        self.label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[CLS]", "[SEP]"]
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        self.label_list = config['label_list']
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
-        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
-        
+        if config['from_bert']:
+            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
+
     def process(self, text, max_seq_length=512, batch_size=16):
         input_ids_full = []
         attention_masks = []
@@ -97,8 +104,15 @@ class TestPreprocess:
 class ProcessOutput:
 
     def __init__(self):
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        self.label_list = config['label_list']
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
-        self._tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
+        if config['from_bert']:
+            self._tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self._tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
 
     def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text, message, error):
         print("Tokens = ", tokens, file=file_name)
@@ -132,8 +146,8 @@ class ProcessOutput:
 
         step = 0
 
-        for i,predict in enumerate(predictions):
-            for j, pred in enumerate(predict):
+        for predict in predictions:
+            for pred in predict:
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
                 text = self._tokenizer.decode(input_ids[step, :nopad[step]])
                 # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
@@ -157,28 +171,28 @@ class ProcessOutput:
                 list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
                 list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
 
-                for j,replace_list in enumerate(list_of_replace_indeces):
+                for n,replace_list in enumerate(list_of_replace_indeces):
 
                     if len(replace_list) > 0:
                         message = ["Incorrect"]
-                        for ids in range(len(replace_list)):
-                            word = tokens[replace_list[ids]]
+                        for l in range(len(replace_list)):
+                            word = tokens[replace_list[l]]
                             k = 1
-                            #while preds[replace_list[ids] + k] == 8: # ["##"]
+                            #while preds[replace_list[l] + k] == 8: # ["##"]
                             if '##' in word:
-                                while '##' in tokens[replace_list[ids]-k]:
-                                    word = tokens[replace_list[ids]-k]+word[2:]
+                                while '##' in tokens[replace_list[l]-k]:
+                                    word = tokens[replace_list[l]-k]+word[2:]
                                     k += 1
-                                word = tokens[replace_list[ids]-k] + word[2:]
+                                word = tokens[replace_list[l]-k] + word[2:]
                                 print(word)
                             k = 1
-                            while '##' in tokens[replace_list[i]+k]:
-                                index = replace_list[ids] + k
+                            while preds[replace_list[l] + k] == preds[replace_list[l]] or ('##' in tokens[replace_list[l]+k]):
+                                index = replace_list[l] + k
                                 word += tokens[index][2:]
                                 k+=1
                             if '##' not in word:
                                 incorrect_words.append(word)
-                                list_of_words_with_mistake[j].append(word)
+                                list_of_words_with_mistake[n].append(word)
 
                 for word in incorrect_words_tisya:
                     error.append("Тся -> ться")

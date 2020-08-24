@@ -1,3 +1,4 @@
+import json
 import time
 import datetime
 import random
@@ -8,12 +9,9 @@ import h5py
 from tqdm import tqdm
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForTokenClassification, AutoTokenizer, AutoModelWithLMHead
+from transformers import BertTokenizer, BertForTokenClassification, AutoModelWithLMHead, AutoTokenizer
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
-
-batch_size = 6
-epochs = 3 # The BERT authors recommend between 2 and 4.
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -75,31 +73,38 @@ class TsyaModel:
 
 
     def __init__(self, weight_path=None, train_from_chk=False, device=device):
-        if weight_path is not None:
-            self.weight_path = weight_path
-        #self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        self.label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[CLS]", "[SEP]"]
-        self.label_map = {}
-        for (i, label) in enumerate(self.label_list):
-            self.label_map[label] = i
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        # if not weight_path:
+        #     self.weight_path = weight_path
+        self.label_list = config['label_list']
+        config['num_labels'] = len(config['label_list'])
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
+        if config['from_bert']:
 
-        self.model = AutoModelWithLMHead.from_pretrained("DeepPavlov/rubert-base-cased",
-#            num_labels=len(self.label_list),
-#            output_attentions=False,
-#            output_hidden_states=False,
-        )
+            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+
+            self.model = BertForTokenClassification.from_pretrained(
+                config['config_of_model']
+            )
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
+
+            self.model = AutoModelWithLMHead.from_pretrained(
+                config['config_of_model']
+            )
 
         if train_from_chk:
-            self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
+            self.model.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu')))
 
-        self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
 
         self.optimizer = AdamW(self.model.parameters(),
-                          lr = 2e-5, # args.learning_rate - default is 5e-5
-                          eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
+                          config['adam_options']
                          )
         self.model.to(device)
-        self.seed_val = 42
+        self.seed_val = config['seed_val'] #42
+        self.batch_size = config['batch_size']
+        self.epochs = config['epochs']
 
     def format_time(self, elapsed):
 
@@ -127,21 +132,21 @@ class TsyaModel:
                                     torch.from_numpy(val_processor.input_mask),
                                     torch.from_numpy(val_processor.label_ids))
 
-        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=batch_size)
-        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=batch_size)
+        train_dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=self.batch_size)
+        validation_dataloader = DataLoader(val_dataset, sampler=SequentialSampler(val_dataset), batch_size=self.batch_size)
 
         return train_dataloader, validation_dataloader
 
 
     def train(self, chkp_path, train_data_processor, val_data_processor):
-        if not chkp_path:
-            chkp_path = self.weight_path
+        # if not chkp_path:
+        #     chkp_path = self.weight_path
 
         train_dataloader, validation_dataloader = self._dataset(train_data_processor, val_data_processor)
 
         print("Dataloader is created")
 
-        total_steps = len(train_dataloader) * epochs
+        total_steps = len(train_dataloader) * self.epochs
 
         scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
                                                          num_training_steps=total_steps)
@@ -166,14 +171,14 @@ class TsyaModel:
         training_stats = []
         total_t0 = time.time()
 
-        for epoch_i in range(epochs):
+        for epoch_i in range(self.epochs):
 
             # ========================================
             #               Training
             # ========================================
 
             print("")
-            print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
+            print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, self.epochs))
             print('Training...')
 
             t0 = time.time()
@@ -245,7 +250,7 @@ class TsyaModel:
                 total_eval_loss += loss.item()
                 logits = logits.detach().cpu().numpy()
                 label_ids = b_labels.to('cpu').numpy()
-                print(label_ids, logits)
+
                 total_eval_accuracy += self.flat_accuracy(logits, label_ids)
             print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
             last = np.argmax(logits, axis=2)
