@@ -4,10 +4,10 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 
 from Model import GetIndices, TsyaModel
 
-batch_size = 6
+batch_size = 1
 epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
-chkp_path = "Chkpt_part_of_word_new.pth"
+chkp_path = "Chkpt_part_of_word_new_deeppavlov.pth"
 
 def main():
 

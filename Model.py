@@ -84,9 +84,9 @@ class TsyaModel:
             self.label_map[label] = i
 
         self.model = AutoModelWithLMHead.from_pretrained("DeepPavlov/rubert-base-cased",
-            num_labels=len(self.label_list),
-            output_attentions=False,
-            output_hidden_states=False,
+#            num_labels=len(self.label_list),
+#            output_attentions=False,
+#            output_hidden_states=False,
         )
 
         if train_from_chk:

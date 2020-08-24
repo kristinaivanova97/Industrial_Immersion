@@ -19,7 +19,7 @@ class DataPreprocess:
     def __init__(self, path_to_file):
 
         #label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-        label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
@@ -83,8 +83,8 @@ class DataPreprocess:
                     if m == 0:
                         labels.append(word_label)
                     else:
-                        #labels.append("[##]")
-                        labels.append("[PAD]")
+                        labels.append("[##]")
+                        #labels.append("[PAD]")
                 else:
                     labels.append(word_label)
 
@@ -180,12 +180,12 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 def main():
 
-    path_to_data = "dataset_plus_correct.txt"
-    data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch()
+#    path_to_data = "dataset_plus_correct.txt"
+#    data_processor = DataPreprocess(path_to_file=path_to_data)
+#    data_processor.process_batch()
 
 
-    # to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=10000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.8, val_part=0.2, test_part=0.0, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":
