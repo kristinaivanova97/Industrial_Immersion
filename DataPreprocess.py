@@ -19,7 +19,7 @@ class DataPreprocess:
     def __init__(self, path_to_file):
 
         #label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-        label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[CLS]", "[SEP]"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")

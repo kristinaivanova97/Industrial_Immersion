@@ -23,9 +23,7 @@ class Errors(int, Enum):
 
 class TestPreprocess:
     def __init__(self):
-        self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya",
-                           "REPLACE_tsya",
-                           "[##]"]
+        self.label_list = ["[PAD]", "O", "[##]", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[CLS]", "[SEP]"]
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
         self.tokenizer = AutoTokenizer.from_pretrained("DeepPavlov/rubert-base-cased")
