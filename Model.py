@@ -82,16 +82,16 @@ class TsyaModel:
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
         if config['from_bert']:
 
-            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+            self.tokenizer = BertTokenizer.from_pretrained(**config['config_of_tokenizer'])
 
             self.model = BertForTokenClassification.from_pretrained(
-                config['config_of_model']
+                **config['config_of_model']
             )
         else:
-            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
+            self.tokenizer = AutoTokenizer.from_pretrained(**config['config_of_tokenizer'])
 
             self.model = AutoModelWithLMHead.from_pretrained(
-                config['config_of_model']
+                **config['config_of_model']
             )
 
         if train_from_chk:
@@ -99,7 +99,7 @@ class TsyaModel:
 
 
         self.optimizer = AdamW(self.model.parameters(),
-                          config['adam_options']
+                          **config['adam_options']
                          )
         self.model.to(device)
         self.seed_val = config['seed_val'] #42

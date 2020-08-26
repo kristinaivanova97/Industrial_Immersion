@@ -20,12 +20,12 @@ class DataPreprocess:
             config = json.load(config_file)
         label_list = config['label_list']
         self.label_map = {label: i for i, label in enumerate(label_list)}
-
+        print(config)
+        print(config['config_of_tokenizer'])
         if config['from_bert']:
-            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+            self.tokenizer = BertTokenizer.from_pretrained(**config['config_of_tokenizer'])
         else:
-            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
-
+            self.tokenizer = AutoTokenizer.from_pretrained(**config['config_of_tokenizer'])
         self.file = config['path_train_data_full_conll']
         self.data_dir = config['data_dir_with_full_labels_hdf']
 
@@ -99,8 +99,8 @@ class DataPreprocess:
         ntokens.append("[CLS]")
         input_mask = []
         input_mask.append(1)
-        #label_ids.append(self.label_map["[CLS]"])
-        label_ids.append(0)
+        label_ids.append(self.label_map["[CLS]"])
+ #       label_ids.append(0)
         for i, token in enumerate(tokens):
             ntokens.append(token)
             '''
@@ -136,12 +136,6 @@ class DataPreprocess:
 def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
                           val_part = 0.2, test_part = 0.2, length = 10000, random_seed = 1):
 
-
-    if not data_dir:
-        data_dir = './new_data/'
-
-    if not output_dir:
-        output_dir = './data/'
 
     parts = ["train", "val", "test"]
 
@@ -183,10 +177,10 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 def main():
 
-    # data_processor = DataPreprocess()
-    # data_processor.process_batch()
+#    data_processor = DataPreprocess()
+#    data_processor.process_batch()
 
-    to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":
