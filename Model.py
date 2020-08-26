@@ -85,7 +85,8 @@ class TsyaModel:
             self.tokenizer = BertTokenizer.from_pretrained(**config['config_of_tokenizer'])
 
             self.model = BertForTokenClassification.from_pretrained(
-                **config['config_of_model']
+                **config['config_of_model'],
+                num_labels=len(config["label_list"])
             )
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(**config['config_of_tokenizer'])
