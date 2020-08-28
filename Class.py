@@ -81,8 +81,11 @@ class TestPreprocess:
         data_with_tsya_or_nn = []
         tsya_search = re.compile(r'тся\b')
         tsiya_search = re.compile(r'ться\b')
-        nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
-        n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
+        #TODO do not forget to change regex for more wide
+        # nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
+        # n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
+        nn_search = re.compile(r'\wнн([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
+        n_search = re.compile(r'[аоэеиыуёюя]н([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b', re.IGNORECASE)
 
         for sentence in data:
 
@@ -122,7 +125,7 @@ class ProcessOutput:
     #def process(self, predictions, input_ids, nopad, data_tags, text_data):
     def process(self, predictions, input_ids, nopad, text_data):
 
-        correct_text_full = ''
+        correct_text_full = []
         incorrect_words_from_sentences = []
         all_messages = []
         all_errors = []
@@ -172,12 +175,12 @@ class ProcessOutput:
                                     word = tokens[replace_list[ids]-k]+word[2:]
                                     k += 1
                                 word = tokens[replace_list[ids]-k] + word[2:]
-                                print(word)
                             k = 1
-                            while '##' in tokens[replace_list[ids]+k]:
-                                index = replace_list[ids] + k
-                                word += tokens[index][2:]
-                                k+=1
+                            if replace_list[ids]+k < len(tokens):
+                                while '##' in tokens[replace_list[ids]+k]:
+                                    index = replace_list[ids] + k
+                                    word += tokens[index][2:]
+                                    k+=1
                             if '##' not in word:
                                 incorrect_words.append(word)
                                 list_of_words_with_mistake[j].append(word)
@@ -194,11 +197,11 @@ class ProcessOutput:
                     word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
                     correct_text = correct_text.replace(word, word_correct)
                 #TODO: добавить случаи с заглавными буквами и с капсом
-                pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)',
+                pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
                                            re.IGNORECASE)
-                pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
-                pattern_nn = re.compile(r'(?-i:нн)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
-                pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b)', re.IGNORECASE)
+                pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+                pattern_nn = re.compile(r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+                pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
                 for word in incorrect_words_n:
                     error.append("нн -> н")
                     word = pattern_nn_cased.sub('Н', word)
@@ -218,7 +221,7 @@ class ProcessOutput:
                 incorrect_words_from_sentences.append(incorrect_words)
                 all_messages.append(message)
                 all_errors.append(error)
-                correct_text_full += correct_text
+                correct_text_full.append(correct_text)
 
                 step+=1
 
@@ -266,15 +269,16 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
     parts = ["train", "val", "test"]
 
     with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
+        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
 
             input_data = f['input_ids']
+            input_data2 = f2['input_ids']
 
             idxs = list(range(len(input_data)))
-
+            idxs2 = list(range(len(input_data2)))
             random.seed(random_seed)
             random.shuffle(idxs)
-
-            # counter = 0
+            random.shuffle(idxs2)
 
             points = (
                 int(train_part * length),
@@ -291,51 +295,20 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
                         counter = 0
                         dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
                         input_data = f[ftype]
+                        input_data2 = f2[ftype]
                         output_data = file.create_dataset(ftype, (end-start, 512),
                                                                       maxshape=(1000000, 512),
                                                                       dtype=dtype_dict[ftype])
                         for index in tqdm(idxs[start:end]):
 
-                            if ftype == 'label_ids':
-                                buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
-                                print(buffer)
+                            # if ftype == 'label_ids':
+                            #     buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
+                            #     print(buffer)
+                            # else:
+                            #     buffer = input_data[index, :]
+                            # output_data[counter, :] = buffer
+                            if index <= end//2:
+                                output_data[counter, :] = input_data[index, :]
                             else:
-                                buffer = input_data[index, :]
-                            output_data[counter, :] = buffer
-
-
-                            #output_data[counter, :] = input_data[index, :]
+                                output_data[counter, :] = input_data2[index, :]
                             counter += 1
-
-        #
-        # with h5py.File(output_dir + 'train' + '.hdf5', 'w') as file_train:
-        #     with h5py.File(output_dir + 'val' + '.hdf5', 'w') as file_val:
-        #         with h5py.File(output_dir + 'test' + '.hdf5', 'w') as file_test:
-        #
-        #
-        #             for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
-        #                 output_data_train = file_train.create_dataset(ftype, (volume_of_train_data, 512), maxshape=(1000000, 512),
-        #                                                               dtype=dtype_dict[ftype])
-        #
-        #                 output_data_val = file_val.create_dataset(ftype, (volume_of_val_data, 512), maxshape=(25000, 512),
-        #                                                           dtype=dtype_dict[ftype])
-        #                 output_data_test = file_test.create_dataset(ftype, (volume_of_test_data, 512), maxshape=(25000, 512),
-        #                                                             dtype=dtype_dict[ftype])
-        #                 input_data = f[ftype]
-        #
-        #                 idxs = list(range(len(input_data)))
-        #
-        #                 random.seed(random_seed)
-        #                 random.shuffle(idxs)
-        #
-        #                 counter = 0
-        #
-        #                 for index in tqdm(idxs[:volume_of_val_data+volume_of_train_data+volume_of_test_data]):
-        #                     if counter < volume_of_train_data:
-        #                         output_data_train[counter, :] = input_data[index, :]
-        #                     elif counter < (volume_of_val_data + volume_of_train_data):
-        #                         output_data_val[counter-volume_of_train_data, :] = input_data[index, :]
-        #                     elif counter < (volume_of_train_data + volume_of_val_data + volume_of_test_data):
-        #                         output_data_test[counter-volume_of_train_data - volume_of_val_data, :] = input_data[index, :]
-        #                     counter += 1
-

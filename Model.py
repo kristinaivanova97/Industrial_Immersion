@@ -78,7 +78,8 @@ class TsyaModel:
         if weight_path is not None:
             self.weight_path = weight_path
         #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        #self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i

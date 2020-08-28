@@ -7,8 +7,8 @@ from Model import GetIndices, TsyaModel
 batch_size = 6
 epochs = 3 # The BERT authors recommend between 2 and 4.
 max_seq_length = 512 # for bert this limit exists
-chkp_path = "Chkpt_full_labels_new.pth"
-data_path = './data_2/'
+chkp_path = "Chkpt_full_labels.pth"
+data_path = './data_with_full_label_split/'
 
 def main():
 

@@ -8,24 +8,25 @@ from transformers import BertTokenizer
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./new_data_with_full_label/"
+data_dir = "./data_pow/"
 
 
 class DataPreprocess:
     
     def __init__(self, path_to_file):
 
-        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
+                        'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.file = path_to_file
 
 
-    def process_batch(self):
+    def process_batch(self, output_file):
 
         with open(self.file, 'r', encoding='utf-8') as file:
-            with h5py.File(data_dir + 'ids_all.hdf5', 'w') as f:
+            with h5py.File(data_dir + output_file, 'w') as f:
                 dset_input_ids = f.create_dataset("input_ids", (1200000, 512), maxshape=(1500000,512), dtype='i8')
                 dset_input_mask = f.create_dataset("input_mask", (1200000, 512), maxshape=(1500000,512), dtype='i1')
                 dset_label_ids = f.create_dataset("label_ids", (1200000, 512), maxshape=(1500000,512), dtype='i1')
@@ -120,12 +121,15 @@ class DataPreprocess:
 
 def main():
 
-    path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
+    # path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
+    path_to_data = "./data/news_dataset.txt"
     data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch()
+    data_processor.process_batch(output_file='ids_all_news.hdf5')
+    path_to_data = "./data/dataset_new_endings.txt"
+    data_processor = DataPreprocess(path_to_file=path_to_data)
+    data_processor.process_batch(output_file='ids_all.hdf5')
 
-
-    #to_train_val_test_hdf(data_dir='./new_data_with_full_label/', output_dir='./data_2/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
+    #to_train_val_test_hdf(data_dir='./new_data_with_full_label/', output_dir='./data_with_full_label_split/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":
