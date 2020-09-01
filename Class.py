@@ -7,7 +7,7 @@ from enum import Enum
 
 import h5py
 import numpy as np
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig
+from transformers import BertTokenizer
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
@@ -23,9 +23,9 @@ class Errors(int, Enum):
 
 class TestPreprocess:
     def __init__(self):
-        self.label_list = ["[Padding]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya",
-                           "REPLACE_tsya",
-                           "[##]"]
+        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya","REPLACE_tsya","[##]"]
+        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
+        #              'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
@@ -33,18 +33,12 @@ class TestPreprocess:
     def process(self, text, max_seq_length=512, batch_size=16):
         input_ids_full = []
         attention_masks = []
-        # label_ids_full = []
         nopad = []
-
-        # y_label = self.gettags(text)
         for i, sentence in enumerate(text):
             tokens = []
             for j, word in  enumerate(re.findall(r'\w+|[^\w\s]', sentence, re.UNICODE)):
                 token = self.tokenizer.tokenize(word)
                 tokens.extend(token)
-                # label_1 = y_label[i][j]
-                # for m in range(len(token)):
-                #     labels.append(label_1)
 
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
@@ -68,7 +62,6 @@ class TestPreprocess:
             assert len(input_mask) == max_seq_length
             input_ids_full.append(input_ids)
             attention_masks.append(input_mask)
-            # label_ids_full.append(label_ids)
             
         input_ids = torch.tensor(input_ids_full)
         attention_masks = torch.tensor(attention_masks)
@@ -122,8 +115,93 @@ class ProcessOutput:
             error = ['None']
         print("Mistake = {} \n".format(error))
 
-    #def process(self, predictions, input_ids, nopad, data_tags, text_data):
-    def process(self, predictions, input_ids, nopad, text_data):
+    def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_O):
+        # print(probabilities)
+        # print(probabilities_O)
+
+        probs = []
+        probs_O = []
+        tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
+        initial_text = text_data[0]
+        preds = np.array(prediction[0][0])
+        correct_text = initial_text
+        incorrect_words = []
+        incorrect_words_tisya = []
+        incorrect_words_tsya = []
+        incorrect_words_n = []
+        incorrect_words_nn = []
+        message = ["Correct"]
+        error = []
+
+        replace_tsya = np.where(preds==7)[0].tolist()
+        replace_tisya = np.where(preds==6)[0].tolist()
+        replace_n = np.where(preds==5)[0].tolist()
+        replace_nn = np.where(preds==4)[0].tolist()
+        # replace_tsya = np.where(preds==4)[0].tolist()
+        # replace_tisya = np.where(preds==3)[0].tolist()
+        # replace_n = np.where(preds==2)[0].tolist()
+        # replace_nn = np.where(preds==1)[0].tolist()
+
+        list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
+        list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
+
+        for p, replace_list in enumerate(list_of_replace_indeces):
+
+            if len(replace_list) > 0:
+                message = ["Incorrect"]
+                for ids in range(len(replace_list)):
+                    probs.append(probabilities[ids])
+                    probs_O.append(probabilities_O[ids])
+                    word = tokens[replace_list[ids]]
+                    k = 1
+                    if '##' in word:
+                        while '##' in tokens[replace_list[ids]-k]:
+                            word = tokens[replace_list[ids]-k]+word[2:]
+                            k += 1
+                        word = tokens[replace_list[ids]-k] + word[2:]
+                    k = 1
+                    if replace_list[ids]+k < len(tokens):
+                        while '##' in tokens[replace_list[ids]+k]:
+                            index = replace_list[ids] + k
+                            word += tokens[index][2:]
+                            k += 1
+                    if '##' not in word:
+                        incorrect_words.append(word)
+                        list_of_words_with_mistake[p].append(word)
+
+        for word in incorrect_words_tisya:
+            error.append("Тся -> ться")
+            word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
+            correct_text = correct_text.replace(word, word_correct)
+
+        for word in incorrect_words_tsya:
+            error.append("Ться -> тся")
+            word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
+            correct_text = correct_text.replace(word, word_correct)
+        pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+                                   re.IGNORECASE)
+        pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+        pattern_nn = re.compile(r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+        pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+        for word in incorrect_words_n:
+            error.append("нн -> н")
+            word_correct = pattern_nn_cased.sub('Н', word)
+            word_correct = pattern_nn.sub('н', word_correct)
+            correct_text = correct_text.replace(word, word_correct)
+
+        for word in incorrect_words_nn:
+            error.append("н -> нн")
+            word_correct = pattern_n_cased.sub('НН', word)
+            word_correct = pattern_n.sub('нн', word_correct)
+            correct_text = correct_text.replace(word, word_correct)
+
+        self.print_results(tokens, preds, initial_text, correct_text, message, error)
+
+        return message, incorrect_words, correct_text, error, probs, probs_O
+
+
+
+    def process_batch(self, predictions, input_ids, nopad, text_data, probabilities, probabilities_O):
 
         correct_text_full = []
         incorrect_words_from_sentences = []
@@ -132,13 +210,14 @@ class ProcessOutput:
 
         step = 0
 
-        for i,predict in enumerate(predictions):
+        for i, predict in enumerate(predictions):
             for j, pred in enumerate(predict):
+                probs = []
+                probs_O = []
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
                 # text = self._tokenizer.decode(input_ids[step, :nopad[step]])
                 # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
                 initial_text = text_data[step]
-                #tags =  np.array(data_tags[step][:nopad[step]])
                 preds = np.array(pred)
                 correct_text = initial_text
                 incorrect_words = []
@@ -158,15 +237,17 @@ class ProcessOutput:
                 # replace_n = np.where(preds==2)[0].tolist()
                 # replace_nn = np.where(preds==1)[0].tolist()
 
-
                 list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
                 list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
 
-                for j,replace_list in enumerate(list_of_replace_indeces):
+                for p, replace_list in enumerate(list_of_replace_indeces):
 
                     if len(replace_list) > 0:
                         message = ["Incorrect"]
                         for ids in range(len(replace_list)):
+                            probs.append(probabilities[ids])
+                            probs_O.append(probabilities_O[ids])
+
                             word = tokens[replace_list[ids]]
                             k = 1
                             #while preds[replace_list[ids] + k] == 8: # ["##"]
@@ -183,17 +264,15 @@ class ProcessOutput:
                                     k+=1
                             if '##' not in word:
                                 incorrect_words.append(word)
-                                list_of_words_with_mistake[j].append(word)
+                                list_of_words_with_mistake[p].append(word)
 
                 for word in incorrect_words_tisya:
                     error.append("Тся -> ться")
-                    #word_correct = word.replace('тся', 'ться')
                     word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
                     correct_text = correct_text.replace(word, word_correct)
 
                 for word in incorrect_words_tsya:
                     error.append("Ться -> тся")
-                    #word_correct = word.replace('ться', 'тся')
                     word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
                     correct_text = correct_text.replace(word, word_correct)
                 #TODO: добавить случаи с заглавными буквами и с капсом
@@ -204,16 +283,14 @@ class ProcessOutput:
                 pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
                 for word in incorrect_words_n:
                     error.append("нн -> н")
-                    word = pattern_nn_cased.sub('Н', word)
-                    word_correct = pattern_nn.sub('н', word)
-                    #word_correct = word.replace('нн', 'н')
+                    word_correct = pattern_nn_cased.sub('Н', word)
+                    word_correct = pattern_nn.sub('н', word_correct)
                     correct_text = correct_text.replace(word, word_correct)
 
                 for word in incorrect_words_nn:
                     error.append("н -> нн")
-                    word = pattern_n_cased.sub('НН', word)
-                    word_correct = pattern_n.sub('нн', word)
-                    #word_correct = word.replace('н', 'нн')
+                    word_correct = pattern_n_cased.sub('НН', word)
+                    word_correct = pattern_n.sub('нн', word_correct)
                     correct_text = correct_text.replace(word, word_correct)
 
                 self.print_results(tokens, preds, initial_text, correct_text, message, error)
@@ -225,23 +302,7 @@ class ProcessOutput:
 
                 step+=1
 
-        return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors
-'''
-def _check_coincide(self):
-    
-    coincide = np.sum(self.tags[(self.tags==4) | (self.tags==5)] == self.preds[(self.tags==4) | (self.tags==5)])
-    #print("Coincide in {} positions with tsya/tsiya ".format(coincide))
-    if coincide == len(self.tags[(self.tags==4) | (self.tags==5)]):
-        if (len(self.tags[(self.tags==4) | (self.tags==5)]) == 0):
-            print("Sentence does not contain words with tsya/tsiya")
-        else:
-            print("Predicted and initial sentences coincide")
-        return 0
-    else:
-        print("Sentence contain a mistake!")
-        return 1
-'''
-
+        return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors,probs, probs_O
 
 def permutate(arr, saveOrder=True, seedValue=1):
    idxs = list(range(len(arr)))
@@ -257,7 +318,7 @@ def permutate(arr, saveOrder=True, seedValue=1):
    return arr
 
 def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
-                          val_part = 0.2, test_part = 0.2, length = 10000, random_seed = 1):
+                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
 
 
     if not data_dir:
@@ -294,21 +355,32 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
                     for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
                         counter = 0
                         dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
-                        input_data = f[ftype]
-                        input_data2 = f2[ftype]
                         output_data = file.create_dataset(ftype, (end-start, 512),
                                                                       maxshape=(1000000, 512),
                                                                       dtype=dtype_dict[ftype])
-                        for index in tqdm(idxs[start:end]):
+                        if use_both_datasets:
 
-                            # if ftype == 'label_ids':
-                            #     buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
-                            #     print(buffer)
-                            # else:
-                            #     buffer = input_data[index, :]
-                            # output_data[counter, :] = buffer
-                            if index <= end//2:
+                            input_data = f[ftype]
+                            input_data2 = f2[ftype]
+
+                            for index in tqdm(idxs[start//2:end//2]):
+
+                                # if ftype == 'label_ids':
+                                #     buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
+                                #     print(buffer)
+                                # else:
+                                #     buffer = input_data[index, :]
+                                # output_data[counter, :] = buffer
+
                                 output_data[counter, :] = input_data[index, :]
-                            else:
+                                counter += 1
+                            for index in tqdm(idxs2[start // 2:end // 2]):
                                 output_data[counter, :] = input_data2[index, :]
-                            counter += 1
+                                counter += 1
+                        else:
+
+                            input_data = f[ftype]
+
+                            for index in tqdm(idxs[start:end]):
+                                output_data[counter, :] = input_data[index, :]
+                                counter += 1

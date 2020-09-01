@@ -23,13 +23,13 @@ class DataPreprocess:
         self.file = path_to_file
 
 
-    def process_batch(self, output_file):
+    def process_batch(self, output_file, file_size = 1200000):
 
         with open(self.file, 'r', encoding='utf-8') as file:
             with h5py.File(data_dir + output_file, 'w') as f:
-                dset_input_ids = f.create_dataset("input_ids", (1200000, 512), maxshape=(1500000,512), dtype='i8')
-                dset_input_mask = f.create_dataset("input_mask", (1200000, 512), maxshape=(1500000,512), dtype='i1')
-                dset_label_ids = f.create_dataset("label_ids", (1200000, 512), maxshape=(1500000,512), dtype='i1')
+                dset_input_ids = f.create_dataset("input_ids", (file_size, 512), maxshape=(1500000,512), dtype='i8')
+                dset_input_mask = f.create_dataset("input_mask", (file_size, 512), maxshape=(1500000,512), dtype='i1')
+                dset_label_ids = f.create_dataset("label_ids", (file_size, 512), maxshape=(1500000,512), dtype='i1')
                 line = file.readline()
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -121,15 +121,15 @@ class DataPreprocess:
 
 def main():
 
-    # path_to_data = "/mnt/sda/orpho/data/dataset_plus_correct.txt"
-    path_to_data = "./data/news_dataset.txt"
+    path_to_data = "./data/news_dataset_new_endings.txt"
     data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch(output_file='ids_all_news.hdf5')
-    path_to_data = "./data/dataset_new_endings.txt"
-    data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch(output_file='ids_all.hdf5')
+    data_processor.process_batch(output_file='ids_all_news.hdf5', file_size=472630)
+    # path_to_data = "./data/dataset_new_endings.txt"
+    # data_processor = DataPreprocess(path_to_file=path_to_data)
+    # data_processor.process_batch(output_file='ids_all.hdf5', file_size=1096090)
 
-    #to_train_val_test_hdf(data_dir='./new_data_with_full_label/', output_dir='./data_with_full_label_split/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
+    #to_train_val_test_hdf(data_dir='./data_pow/', output_dir='./data_pow_split_full_endings_1set/', train_part=0.6, val_part=0.2,\
+    # length=140000, random_seed=1, use_both_datasets=False)
 
 
 if __name__ == "__main__":

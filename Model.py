@@ -11,6 +11,7 @@ import torch
 from transformers import BertTokenizer, BertForTokenClassification
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+from scipy.special import softmax
 
 batch_size = 6
 epochs = 3 # The BERT authors recommend between 2 and 4.
@@ -77,9 +78,10 @@ class TsyaModel:
     def __init__(self, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
+        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         #self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
@@ -288,9 +290,10 @@ class TsyaModel:
 
 
 
-    def predict(self, prediction_dataloader, nopad):
+    def predict_batch(self, prediction_dataloader, nopad):
         self.model.eval()
         predicts_full = []
+        probability = []
         step = 0
         for batch in prediction_dataloader:
             batch = tuple(t.to(device) for t in batch)
@@ -300,11 +303,19 @@ class TsyaModel:
                 output = self.model(b_input_ids, token_type_ids=None,
                                     attention_mask=b_input_mask)
             logits = output[0].detach().cpu().numpy()
+            # norm = np.linalg.norm(logits, axis=2)
             prediction = np.argmax(logits, axis=2)
+            O_index = self.label_list.index('O')
             predicts = []
             for i in range(len(b_input_ids)):
+
+                #probs = np.divide(np.argmax(logits, axis=2)[i][:nopad[step]], norm[i][:nopad[step]])
+                probs = np.amax(softmax(logits, axis=2), axis=2)[i][:nopad[step]]
+                probs_O = softmax(logits, axis=2)[i][O_index]
                 predicts.append(prediction[i, :nopad[step]])
+                #probs = [logits[i][l][ids] for l, ids in enumerate(prediction[:nopad[step]])]
                 step += 1
+            probability.append(probs)
             predicts_full.append(predicts)
 
-        return predicts_full
+        return predicts_full, probs, probs_O
