@@ -15,8 +15,9 @@ class DataPreprocess:
     
     def __init__(self, path_to_file):
 
-        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
-                        'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
+        # label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
+        #               'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
+        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
