@@ -5,10 +5,12 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 from Model import GetIndices, TsyaModel
 
 max_seq_length = 512 # for bert this limit exists
-#TODO move this files to folder data_pow_split_full_endings_1set,
-# do not forget to restarrt train with Chkpts/Chkpt_pow_new_endings_1set_test.pth and data_pow_split_full_endings_1set_test folder
-chkp_path = "Chkpts/Chkpt_pow_new_endings_1set.pth"
-data_path = './data_pow_split_full_endings_1set_test/'
+#TODO change file names!! Firstly train with both datasets, both mistakes (changed):
+# previous: "Chkpts/Chkpt_pow_new_endings_1set_test.pth", './data_pow_split_full_endings_1set_test/'
+# then change to filenames for only tsya (1 dataset)
+# test means - more sentences with nn
+chkp_path = "Chkpts/Chkpt_pow_new_endings_2set_test.pth"
+data_path = './data_pow_split_full_endings_2set_test/'
 
 def main():
 

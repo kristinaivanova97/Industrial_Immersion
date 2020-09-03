@@ -78,8 +78,9 @@ class TsyaModel:
     def __init__(self, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
-        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        #TODO merge with Miron not to change every time!!!
+        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
+        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         #self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
         self.label_map = {}
@@ -310,10 +311,10 @@ class TsyaModel:
             for i in range(len(b_input_ids)):
 
                 #probs = np.divide(np.argmax(logits, axis=2)[i][:nopad[step]], norm[i][:nopad[step]])
-                probs = np.amax(softmax(logits, axis=2), axis=2)[i][:nopad[step]]
-                probs_O = softmax(logits, axis=2)[i][O_index]
+                soft = softmax(logits, axis=2)
+                probs = np.amax(soft, axis=2)[i][:nopad[step]]
+                probs_O = [soft[i][l][O_index] for l in range(nopad[step])]
                 predicts.append(prediction[i, :nopad[step]])
-                #probs = [logits[i][l][ids] for l, ids in enumerate(prediction[:nopad[step]])]
                 step += 1
             probability.append(probs)
             predicts_full.append(predicts)

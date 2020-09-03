@@ -74,7 +74,6 @@ class TestPreprocess:
         data_with_tsya_or_nn = []
         tsya_search = re.compile(r'тся\b')
         tsiya_search = re.compile(r'ться\b')
-        #TODO do not forget to change regex for more wide
         # nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
         # n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
         nn_search = re.compile(r'\wнн([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
@@ -115,9 +114,18 @@ class ProcessOutput:
             error = ['None']
         print("Mistake = {} \n".format(error))
 
-    def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o, threshold=0.5):
-        print(probabilities)
-        print(probabilities_o)
+    def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
+                                                                                default_value, threshold=0.5):
+        # print(probabilities)
+        # print(probabilities_o)
+
+        # load dictionaries
+        with open('data/tsya_vocab.txt', 'r') as f:
+            pairs = f.read().splitlines()
+        tisya_existing_words = set([pair.split('\t')[0] for pair in pairs])
+        tsya_existing_words = set([pair.split('\t')[1] for pair in pairs])
+        with open('data/all_n_nn_words_full_endings.txt', 'r') as f:
+            n_nn_existing_words = set(f.read().splitlines())
 
         tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
         initial_text = text_data[0]
@@ -128,13 +136,25 @@ class ProcessOutput:
         incorrect_words_tsya = []
         incorrect_words_n = []
         incorrect_words_nn = []
-        message = ["Correct"]
+        message = "Correct"
         error = []
         correction_dict = {}
+        #all_probs_pow_case = []
         places = []
+        words = []
         for pos, token in enumerate(tokens):
+            word = token
+            k = 1
             if '##' not in token:
                 places.append(pos)
+                #all_probs_pow_case.append(probabilities[pos])
+            if pos + k < len(tokens):
+                while '##' in tokens[pos + k]:
+                    index = pos + k
+                    word += tokens[index][2:]
+                    k += 1
+            if '##' not in word:
+                words.append(word)
 
         replace_tsya = np.where(preds == 7)[0].tolist()
         replace_tisya = np.where(preds == 6)[0].tolist()
@@ -144,40 +164,53 @@ class ProcessOutput:
         # replace_tisya = np.where(preds==3)[0].tolist()
         # replace_n = np.where(preds==2)[0].tolist()
         # replace_nn = np.where(preds==1)[0].tolist()
-        probs = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
-        probs_o = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
+        # probs = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
+        # probs_o = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
+        probs = []
+        probs_o = []
 
         list_of_replace_indeces = [replace_tsya, replace_tisya, replace_n, replace_nn]
         list_of_words_with_mistake = [incorrect_words_tsya, incorrect_words_tisya, incorrect_words_n, incorrect_words_nn]
 
-        place = 0
         for p, replace_list in enumerate(list_of_replace_indeces):
 
             if len(replace_list) > 0:
-                message = ["Incorrect"]
+                message = "Incorrect"
                 for ids in range(len(replace_list)):
                     if probabilities[replace_list[ids]] > threshold:
-                        probs[place] = probabilities[replace_list[ids]]
-                        probs_o[place] = probabilities_o[replace_list[ids]]
                         word = tokens[replace_list[ids]]
                         k = 1
+                        current = probabilities[replace_list[ids]]
+                        current_o = probabilities_o[replace_list[ids]]
                         if '##' in word:
                             while '##' in tokens[replace_list[ids]-k]:
                                 word = tokens[replace_list[ids]-k]+word[2:]
+                                if (replace_list[ids]-k) in replace_list:
+                                    if current < probabilities[replace_list[ids]-k]:
+                                        current = probabilities[replace_list[ids]-k]
+                                    if current_o < probabilities_o[replace_list[ids] - k]:
+                                        current_o = probabilities_o[replace_list[ids] - k]
                                 k += 1
                             word = tokens[replace_list[ids]-k] + word[2:]
                         k = 1
-                        if replace_list[ids]+k < len(tokens):
-                            while '##' in tokens[replace_list[ids]+k]:
-                                index = replace_list[ids] + k
-                                word += tokens[index][2:]
-                                k += 1
+                        if replace_list[ids] + k < len(tokens):
+                            if '##' in tokens[replace_list[ids] + k]:
+                                check_contain = False
+                                while '##' in tokens[replace_list[ids] + k]:
+                                    word += tokens[replace_list[ids] + k][2:]
+                                    k += 1
+                                    if (replace_list[ids]+k) in replace_list:
+                                        check_contain = True
+                                if not check_contain:
+                                    probs.append(current)
+                                    probs_o.append(current_o)
+                            else:
+                                probs.append(current)
+                                probs_o.append(current_o)
                         if '##' not in word:
                             incorrect_words.append(word)
                             list_of_words_with_mistake[p].append(word)
-                        place += 1
 
-        words = initial_text.split()
         pattern_n_cased = re.compile(
             r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
             re.IGNORECASE)
@@ -191,67 +224,59 @@ class ProcessOutput:
             r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
             re.IGNORECASE)
         place = 0
-        for pos in places[1:-1]:
-            if words[pos] in incorrect_words_tisya:
-                correction_dict.setdefault(pos, [])
+        for index, pos in enumerate(places[1:-1]):
+            word = words[index + 1]
+            if word in incorrect_words_tisya:
+                correction_dict.setdefault(index, [])
                 error.append("Тся -> ться")
                 word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-                correct_text = correct_text.replace(word, word_correct)
-                correction_dict[pos].append(word, word_correct, probs[place])
+                if word_correct in tisya_existing_words:
+                    correct_text = correct_text.replace(word, word_correct)
+                    correction_dict[index] = [word + "->" + word_correct, probs[place], "Тся -> ться"]
+                else:
+                    if message != "Incorrect" and default_value != "Correct":
+                        message = default_value
+                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
                 place += 1
-            elif words[pos] in incorrect_words_tsya:
-                correction_dict.setdefault(pos, [])
+            elif word in incorrect_words_tsya:
+                correction_dict.setdefault(index, [])
                 error.append("Ться -> тся")
                 word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-                correct_text = correct_text.replace(word, word_correct)
-                correction_dict[word] = word_correct
-                correction_dict[pos].append(word, word_correct, probs[place])
+                if word_correct in tsya_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, probs[place], "Ться -> тся"]
+                    correct_text = correct_text.replace(word, word_correct)
+                else:
+                    if message != "Incorrect" and default_value != "Correct":
+                        message = default_value
+                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
                 place += 1
-            elif words[pos] in incorrect_words_n:
-                correction_dict.setdefault(pos, [])
+            elif word in incorrect_words_n:
+                correction_dict.setdefault(index, [])
                 error.append("нн -> н")
                 word_correct = pattern_nn_cased.sub('Н', word)
                 word_correct = pattern_nn.sub('н', word_correct)
-                correct_text = correct_text.replace(word, word_correct)
-                correction_dict[pos].append(word, word_correct, probs[place])
+                if word_correct in n_nn_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, probs[place], "нн -> н"]
+                    correct_text = correct_text.replace(word, word_correct)
+                else:
+                    if message != "Incorrect" and default_value != "Correct":
+                        message = default_value
+                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
                 place += 1
-            elif words[pos] in incorrect_words_nn:
-                correction_dict.setdefault(pos, [])
+            elif word in incorrect_words_nn:
+                correction_dict.setdefault(index, [])
                 error.append("н -> нн")
                 word_correct = pattern_n_cased.sub('НН', word)
                 word_correct = pattern_n.sub('нн', word_correct)
-                correct_text = correct_text.replace(word, word_correct)
-                correction_dict[pos].append(word, word_correct, probs[place])
+                if word_correct in n_nn_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, probs[place], "н -> нн"]
+                    correct_text = correct_text.replace(word, word_correct)
+                else:
+                    if message != "Incorrect" and default_value != "Correct":
+                        message = default_value
+                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
                 place += 1
-
-        # for word in incorrect_words_tisya:
-        #     error.append("Тся -> ться")
-        #     word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-        #     correct_text = correct_text.replace(word, word_correct)
-        #     correction_dict[word] = word_correct
-        #
-        # for word in incorrect_words_tsya:
-        #     error.append("Ться -> тся")
-        #     word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-        #     correct_text = correct_text.replace(word, word_correct)
-        #     correction_dict[word] = word_correct
-        #
-        # for word in incorrect_words_n:
-        #     error.append("нн -> н")
-        #     word_correct = pattern_nn_cased.sub('Н', word)
-        #     word_correct = pattern_nn.sub('н', word_correct)
-        #     correct_text = correct_text.replace(word, word_correct)
-        #     correction_dict[word] = word_correct
-        #
-        # for word in incorrect_words_nn:
-        #     error.append("н -> нн")
-        #     word_correct = pattern_n_cased.sub('НН', word)
-        #     print("Pattern!", pattern_n.search("сверлёным"))
-        #     word_correct = pattern_n.sub('нн', word_correct)
-        #     correct_text = correct_text.replace(word, word_correct)
-        #     correction_dict[word] = word_correct
-
-        self.print_results(tokens, preds, initial_text, correct_text, message, error)
+        #self.print_results(tokens, preds, initial_text, correct_text, message, error)
 
         return message, incorrect_words, correct_text, error, probs, probs_o, correction_dict
 
@@ -328,7 +353,7 @@ class ProcessOutput:
                     error.append("Ться -> тся")
                     word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
                     correct_text = correct_text.replace(word, word_correct)
-                #TODO: добавить случаи с заглавными буквами и с капсом
+
                 pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
                                            re.IGNORECASE)
                 pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)

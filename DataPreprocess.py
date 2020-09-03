@@ -8,7 +8,7 @@ import numpy as np
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./data_pow_test/"
+data_dir = "./data_fl_only_tsya/"
 
 
 class DataPreprocess:
@@ -48,11 +48,13 @@ class DataPreprocess:
                                                                                               sentence_labels=list_of_labeles,
                                                                                               part_of_word=True)
 
-                        if (i % 100) == 0: print(i)
+                        if (i % 1000) == 0:
+                            print(i)
                         if i >= file_size-1:
-                            dset_input_ids.resize((file_size + 1, 512))
-                            dset_input_mask.resize((file_size + 1, 512))
-                            dset_label_ids.resize((file_size + 1, 512))
+                            print(i, list_of_labeles, input_ids.shape)
+                            dset_input_ids.resize((i + 1, 512))
+                            dset_input_mask.resize((i + 1, 512))
+                            dset_label_ids.resize((i + 1, 512))
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
                         dset_label_ids[i, :] = label_ids[:]
@@ -67,7 +69,7 @@ class DataPreprocess:
     def convert_single_example(self, sentence, sentence_labels, max_seq_length=512, part_of_word=False):
 
         tokens = []
-        labels = np.empty()
+        labels = []
         nopad = []
         for i, word in enumerate(sentence):
             token = self.tokenizer.tokenize(word)
@@ -119,19 +121,20 @@ class DataPreprocess:
 
 
 def main():
-
-    # path_to_data = "./data/news_dataset_new_endings.txt"
+#TODO take one dataset for tsya/tisya (as do not have space on device or save locally)
+# change label_lists in model/datapreprocess/class, change folders data_pow_only_tsya and data_pow_only_tsya_1set
+#
+    # path_to_data = "./data/news_dataset_new_endings_test.txt"
     # data_processor = DataPreprocess(path_to_file=path_to_data)
-    # data_processor.process_batch(output_file='ids_all_news.hdf5', file_size=4472777)
-    #TODO before launching mv files from data_pow_test -> data_pow,
-    # data_pow_split_full_endings_1set_test -> data_pow_split_full_endings_1set
-    path_to_data = "./data/dataset_new_endings_test.txt"
+    # data_processor.process_batch(output_file='ids_all_news.hdf5', file_size=472778)
+    # print("Finished with news")
+    path_to_data = "./data/dataset_only_tsya.txt"
     data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch(output_file='ids_all.hdf5', file_size=1096820)
+    data_processor.process_batch(output_file='ids_all.hdf5', file_size=498258)
     print("processed")
-    to_train_val_test_hdf(data_dir='./data_pow_test/', output_dir='./data_pow_split_full_endings_1set_test/', train_part=0.6, val_part=0.2,
-                           length=140000, random_seed=1, use_both_datasets=False)
-    print("all in all")
+    #to_train_val_test_hdf(data_dir='./data_fl_only_tsya/', output_dir='./data_fl_only_tsya_split_1set/', train_part=0.6, val_part=0.2,
+    #                      length=140000, random_seed=1, use_both_datasets=True)
+    #print("all in all")
 
 
 if __name__ == "__main__":
