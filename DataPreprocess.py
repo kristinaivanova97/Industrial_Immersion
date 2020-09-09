@@ -8,23 +8,20 @@ import numpy as np
 from Class import to_train_val_test_hdf
 
 
-data_dir = "./data_fl_only_tsya/"
-
-
 class DataPreprocess:
     
     def __init__(self, path_to_file):
 
         # label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
         #               'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
-        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+        label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         self.label_map = {label: i for i, label in enumerate(label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         self.file = path_to_file
 
 
-    def process_batch(self, output_file, file_size = 1200000):
+    def process_batch(self, output_file, data_dir, file_size = 1200000):
 
         with open(self.file, 'r', encoding='utf-8') as file:
             with h5py.File(data_dir + output_file, 'w') as f:
@@ -46,7 +43,7 @@ class DataPreprocess:
                     else:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
-                                                                                              part_of_word=True)
+                                                                                              part_of_word=False)
 
                         if (i % 1000) == 0:
                             print(i)
@@ -123,18 +120,22 @@ class DataPreprocess:
 def main():
 #TODO take one dataset for tsya/tisya (as do not have space on device or save locally)
 # change label_lists in model/datapreprocess/class, change folders data_pow_only_tsya and data_pow_only_tsya_1set
-#
-    # path_to_data = "./data/news_dataset_new_endings_test.txt"
+    data_dir = "./data_pow/"
+    # path_to_data = "./data/news_dataset_new_endings.txt"
     # data_processor = DataPreprocess(path_to_file=path_to_data)
-    # data_processor.process_batch(output_file='ids_all_news.hdf5', file_size=472778)
+    # data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir = data_dir,
+    #                              file_size=472780)
     # print("Finished with news")
-    path_to_data = "./data/dataset_only_tsya.txt"
-    data_processor = DataPreprocess(path_to_file=path_to_data)
-    data_processor.process_batch(output_file='ids_all.hdf5', file_size=498258)
-    print("processed")
-    #to_train_val_test_hdf(data_dir='./data_fl_only_tsya/', output_dir='./data_fl_only_tsya_split_1set/', train_part=0.6, val_part=0.2,
-    #                      length=140000, random_seed=1, use_both_datasets=True)
-    #print("all in all")
+    # path_to_data = "./data/dataset_new_endings.txt"
+    # data_processor = DataPreprocess(path_to_file=path_to_data)
+    # data_processor.process_batch(output_file='ids_all.hdf5', data_dir = data_dir,
+    #                              file_size=1096822)
+    # print("processed")
+    #TODO make a config for datapreprocess
+    to_train_val_test_hdf(data_dir=data_dir, output_dir='./data_pow_split_full_endings_2set/',
+                          train_part=0.6, val_part=0.2,
+                          length=140000, random_seed=1, use_both_datasets=True)
+    print("all in all")
 
 
 if __name__ == "__main__":

@@ -13,9 +13,6 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from scipy.special import softmax
 
-batch_size = 6
-epochs = 3 # The BERT authors recommend between 2 and 4.
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 print("Device: {}".format(device))
@@ -57,32 +54,16 @@ class GetIndices:
             self.label_ids = f['label_ids'][:,:]
 
 
-    # def get_labels(self, filename):
-    #
-    #     # *** not nessesary as wont't be used later ***
-    #     my_file = open(filename, 'r') # 'Labels.txt'
-    #     y_label = []
-    #     for line in my_file:
-    #         stripped_line = line.strip()
-    #         line_list = stripped_line.split()
-    #         y_label.append(line_list)
-    #     my_file.close()
-    #     print("Size of y_label = ", len(y_label))
-    #     print("*** pleminary labels are created ***")
-    #
-    #     return y_label
-
 class TsyaModel:
 
-
-    def __init__(self, weight_path=None, train_from_chk=False, device=device):
+    def __init__(self, label_list, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
-        #TODO merge with Miron not to change every time!!!
         #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
+        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         #self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
         #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
+        self.label_list = label_list
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
@@ -100,9 +81,9 @@ class TsyaModel:
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
         self.optimizer = AdamW(self.model.parameters(),
-                          lr = 2e-5, # args.learning_rate - default is 5e-5
-                          eps = 1e-8 # args.adam_epsilon  - default is 1e-8.
-                         )
+                               lr=2e-5,  #  args.learning_rate - default is 5e-5
+                               eps=1e-8  #  args.adam_epsilon  - default is 1e-8.
+                               )
         self.model.to(device)
         self.seed_val = 42
 
@@ -111,7 +92,7 @@ class TsyaModel:
         '''
         Takes a time in seconds and returns a string hh:mm:ss
         '''
-        elapsed_rounded = int(round((elapsed)))
+        elapsed_rounded = int(round(elapsed))
         return str(datetime.timedelta(seconds=elapsed_rounded))
 
     # Function to calculate the accuracy of our predictions vs labels
@@ -121,8 +102,7 @@ class TsyaModel:
         labels_flat = labels.flatten()
         return np.sum(pred_flat[labels_flat != 0] == labels_flat[labels_flat != 0]) / len(labels_flat[labels_flat != 0])
 
-
-    def _dataset(self, train_processor, val_processor):
+    def _dataset(self, train_processor, val_processor, batch_size):
 
         dataset = TensorDataset(torch.from_numpy(train_processor.input_ids),
                                 torch.from_numpy(train_processor.input_mask),
@@ -137,19 +117,18 @@ class TsyaModel:
 
         return train_dataloader, validation_dataloader
 
-
-    def train(self, chkp_path, train_data_processor, val_data_processor):
+    def train(self, train_data_processor, val_data_processor, chkp_path, epochs=3, batch_size=6):
         if not chkp_path:
             chkp_path = self.weight_path
 
-        train_dataloader, validation_dataloader = self._dataset(train_data_processor, val_data_processor)
+        train_dataloader, validation_dataloader = self._dataset(train_data_processor, val_data_processor, batch_size)
 
         print("Dataloader is created")
 
         total_steps = len(train_dataloader) * epochs
 
         scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=0,
-                                                         num_training_steps=total_steps)
+                                                    num_training_steps=total_steps)
 
         params = list(self.model.named_parameters())
 
@@ -231,7 +210,6 @@ class TsyaModel:
 
             total_eval_accuracy = 0
             total_eval_loss = 0
-            nb_eval_steps = 0
 
             # Evaluate data for one epoch
             for batch in validation_dataloader:
@@ -281,15 +259,12 @@ class TsyaModel:
                     'Validation Time': validation_time
                 }
             )
-
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
             torch.save(self.model.state_dict(), chkp_path)
         print("Training complete!")
         print("Total training took {:} (h:mm:ss)".format(self.format_time(time.time() - total_t0)))
         torch.save(self.model.state_dict(), chkp_path)
-
-
 
     def predict_batch(self, prediction_dataloader, nopad):
         self.model.eval()

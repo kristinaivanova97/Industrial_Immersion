@@ -5,10 +5,71 @@ import pandas as pd
 import argparse
 import time
 import json
+import csv
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-def test(model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value):
+
+def extract_signs(test_file, suffix):
+    with open(test_file + suffix + '.txt', 'r') as file:
+        text = [line.strip() for line in file]
+        signs = np.empty(len(text))
+        for i, sentence in enumerate(text):
+            sign, sentence = sentence.split(',', 1)
+            signs[i] = int(sign)
+
+    with open(test_file + '.txt', 'r') as file:
+        text = [line.strip() for line in file]
+        signs_true = np.empty(len(text))
+        for i, sentence in enumerate(text):
+            sentence, _, sign = sentence.rpartition(',')
+            if sign == '-':
+                signs_true[i] = 0
+            else:
+                signs_true[i] = 1
+    return signs_true, signs
+
+
+def print_to_file(net, file, sentence, default_value):
+
+    answer = net.execute_old([sentence], default_value)
+    if len(answer) > 1:
+        correct_sentence = answer[2]
+        message = answer[0]
+        if len(answer[3]) > 0:
+            mistake = answer[3]
+        else:
+            mistake = '-'
+    else:
+        correct_sentence = sentence
+        message = 'does not contain appropriate n/nn, tsya/tisya'
+        mistake = '-'
+    if message == 'Incorrect':
+        file.write('0' + ', ' + str(answer[4]) + ', ' + str(answer[5]) + ', ' + str(mistake) + ',' +
+                   correct_sentence + '\n')
+    elif message == 'does not contain appropriate n/nn, tsya/tisya':
+        file.write('2' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
+    else:
+        file.write('1' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
+
+
+def compute_metrics(y_true, y_predict, test_file):
+    acc = np.sum(np.where(np.asarray(y_true) == np.asarray(y_predict), 1, 0)) / len(y_true)
+    tn, fp, fn, tp = confusion_matrix(y_true, y_predict).ravel()
+    precision = tn / (tn + fn)
+    recall = tn / (tn + fp)
+    f1 = 2 * precision * recall / (precision + recall)
+    print(test_file + " Precision = {}, Recall = {}, F1 = {}".format(round(precision, 4), round(recall, 4), round(f1, 4)))
+    return acc, precision, recall, f1
+
+
+def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value):
+
+    acc1, precision1, recall1, f11 = np.nan, np.nan, np.nan, np.nan
+    acc2, precision2, recall2, f12 = np.nan, np.nan, np.nan, np.nan
+    acc, precision, recall, f1 = np.nan, np.nan, np.nan, np.nan
+    acc_tsya, precision_tsya, recall_tsya, f1_tsya = np.nan, np.nan, np.nan, np.nan
+
     if nn_testing:
         for test_file in ["test_nn/Gramota", "test_nn/Michail_collection"]:
             with open(test_file + '.txt', 'r') as file:
@@ -17,104 +78,32 @@ def test(model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn
             with open(test_file + suffix + '.txt', 'w') as file:
                 for sentence in text:
                     sentence, _, _ = sentence.rpartition(',')
-                    answer = net.execute_old([sentence], default_value)
-                    if len(answer) > 1:
-                        correct_sentence = answer[2]
-                        message = answer[0]
-                        if len(answer[3]) > 0:
-                            mistake = answer[3]
-                        else:
-                            mistake = '-'
-                    else:
-                        correct_sentence = sentence
-                        message = 'does not contain appropriate n/nn, tsya/tisya'
-                        mistake = '-'
-                    if message == 'Incorrect':
-                        file.write('0' + ', ' + str(answer[4]) + ', ' + str(answer[5]) + ', ' + str(
-                            mistake) + ',' + correct_sentence + '\n')
-                    elif message == 'does not contain appropriate n/nn, tsya/tisya':
-                        file.write('2' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
-                    else:
-                        file.write('1' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
+                    print_to_file(net, file, sentence, default_value)
         with open('test_nn/Mozhno_itak_itak' + '.txt', 'r') as file:
             text = [line.strip() for line in file]
 
         with open('test_nn/Mozhno_itak_itak' + suffix + '.txt', 'w') as file:
             for sentence in text:
-                answer = net.execute_old([sentence], default_value)
-                if len(answer) > 1:
-                    correct_sentence = answer[2]
-                    message = answer[0]
-                    if len(answer[3]) > 0:
-                        mistake = answer[3]
-                    else:
-                        mistake = '-'
-                else:
-                    correct_sentence = sentence
-                    message = 'does not contain appropriate n/nn, tsya/tisya'
-                    mistake = '-'
-                if message == 'Incorrect':
-                    file.write('0' + ', ' + str(answer[4]) + ', ' + str(answer[5]) + ', ' + str(mistake) + ',' +
-                               correct_sentence + '\n')
-                elif message == 'does not contain appropriate n/nn, tsya/tisya':
-                    file.write('2' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
-                else:
-                    file.write('1' + ', ' + str(mistake) + ',' + correct_sentence + '\n')
+                print_to_file(net, file, sentence, default_value)
 
     if calculate_metrics_nn:
-        test_file = "test_nn/Michail_collection"
-        with open(test_file + suffix + '.txt', 'r') as file:
-            text = [line.strip() for line in file]
-            signs = np.empty(len(text))
-            for i, sentence in enumerate(text):
-                sign, sentence = sentence.split(',', 1)
-                signs[i] = int(sign)
+        test_file1 = "test_nn/Michail_collection"
+        signs_true, signs = extract_signs(test_file1, suffix)
+        test_file2 = "test_nn/Gramota"
+        signs_true2, signs2 = extract_signs(test_file2, suffix)
 
-        with open(test_file + '.txt', 'r') as file:
-            text = [line.strip() for line in file]
-            signs_true = np.empty(len(text))
-            for i, sentence in enumerate(text):
-                sentence, _, sign = sentence.rpartition(',')
-                if sign == '-':
-                    signs_true[i] = 0
-                else:
-                    signs_true[i] = 1
-
-        test_file = "test_nn/Gramota"
-        with open(test_file + suffix + '.txt', 'r') as file:
-            text = [line.strip() for line in file]
-            signs2 = np.empty(len(text))
-            for i, sentence in enumerate(text):
-                sign, sentence = sentence.split(',', 1)
-                signs2[i] = int(sign)
-
-        with open(test_file + '.txt', 'r') as file:
-            text = [line.strip() for line in file]
-            signs_true2 = np.empty(len(text))
-            for i, sentence in enumerate(text):
-                sentence, _, sign = sentence.rpartition(',')
-                if sign == '-':
-                    signs_true2[i] = 0
-                else:
-                    signs_true2[i] = 1
         signs_true = signs_true[signs != 2]
         signs_true2 = signs_true2[signs2 != 2]
         signs = signs[signs != 2]
         signs2 = signs2[signs2 != 2]
-        acc1 = np.sum(np.where(np.asarray(signs_true) == np.asarray(signs), 1, 0)) / len(signs_true)
-        acc2 = np.sum(np.where(np.asarray(signs_true2) == np.asarray(signs2), 1, 0)) / len(signs_true2)
-        accuracy = (acc1 + acc2) / 2
-        print("Full n/nn accuracy = {}".format(round(accuracy * 100, 2)))
+
+        acc1, precision1, recall1, f11 = compute_metrics(signs_true, signs, "Michail")
+        acc2, precision2, recall2, f12 = compute_metrics(signs_true2, signs2, "Gramota")
+        _, precision, recall, f1 = compute_metrics(np.concatenate((signs_true, signs_true2), axis=None), np.concatenate((signs, signs2), axis=None), "Full")
+        acc = (acc1 + acc2) / 2
+        print("Full n/nn accuracy = {}".format(round(acc * 100, 2)))
         print("Michail acc = {}".format(round(acc1 * 100, 3)))
         print("Gramota acc = {}".format(round(acc2 * 100, 3)))
-
-        y_true = np.concatenate((signs_true, signs_true2), axis=None)
-        y_predict = np.concatenate((signs, signs2), axis=None)
-        tn, fp, fn, tp = confusion_matrix(y_true, y_predict).ravel()
-        precision = tn / (tn + fn)
-        recall = tn / (tn + fp)
-        f1 = 2 * precision * recall / (precision + recall)
-        print("Precision = {}, Recall = {}, F1 = {}".format(round(precision, 3), round(recall, 3), round(f1, 3)))
 
     if tsya_testing:
         data = pd.read_csv('/mnt/sda/orpho/data/test_linguists.csv', index_col=0)
@@ -126,19 +115,19 @@ def test(model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn
             correct_sentence = answer[2]
             data['new_model_v2'].iloc[i] = '+' if answer[0] == 'Correct' else '-'
             data['new_model_correct'].iloc[i] = correct_sentence
-        data.to_csv('test_linguists' + suffix + '.csv')
+        data.to_csv('./test_linguists/' + 'test_linguists' + suffix + '.csv')
 
     if calculate_metrics_tsya:
-        data = pd.read_csv('test_linguists' + suffix + '.csv', index_col=0)
+        data = pd.read_csv('./test_linguists/' + 'test_linguists' + suffix + '.csv', index_col=0)
         data_true = pd.read_csv('/mnt/sda/orpho/data/test_linguists.csv', index_col=0)
-        acc = np.sum(np.where(np.asarray(data['new_model_v2']) == np.asarray(data['y_true']), 1, 0)) / len(
+        _, precision_tsya, recall_tsya, f1_tsya = compute_metrics(data_true['y_true'].to_numpy(),
+                                                                  data['new_model_v2'].to_numpy(), "Tsya")
+        acc_tsya = np.sum(np.where(np.asarray(data['new_model_v2']) == np.asarray(data['y_true']), 1, 0)) / len(
             data_true['y_true'])
-        tn, fp, fn, tp = confusion_matrix(data_true['y_true'].to_numpy(), data['new_model_v2'].to_numpy()).ravel()
-        precision = tn / (tn + fn)
-        recall = tn / (tn + fp)
-        f1 = 2 * precision * recall / (precision + recall)
-        print("Tsya accuracy = {}".format(round(acc * 100, 3)))
-        print("Precision = {}, Recall = {}, F1 = {}".format(round(precision, 3), round(recall, 3), round(f1, 3)))
+        print("Tsya accuracy = {}".format(round(acc_tsya * 100, 3)))
+
+    writer.writerow([model_name, acc1, precision1, recall1, f11, acc2, precision2, recall2, f12,
+                    acc, precision, recall, f1, acc_tsya, precision_tsya, recall_tsya, f1_tsya])
 
 
 def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value):
@@ -157,24 +146,40 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
 
     else:
         start_time = time.time()
-        net = OrphoNet()
-        suffixes = ['_answered', '_answered2', '_full_endings_1set', '_answered_more_nn_sent_1set',
-                                                                        '_answered_full_end_more_nn_2set']
-        chkpths = ['Chkpt_part_of_word.pth', 'Chkpt_full_labels.pth', 'Chkpt_pow_new_endings_1set.pth',
-                    'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
+        suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
+                    '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
+                    '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
+        chkpths = ['Chkpt_full_labels.pth', 'Chkpt_fl_hardsoft_1set.pth', 'Chkpt_fl_hardsoft_2set.pth',
+                   'Chkpt_fl_hardsoft_schitanye_1set.pth', 'Chkpt_fl_hardsoft_schitanye_2set.pth',
+                   'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
+                   'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
 
-        for i, model_name in enumerate(['POW_hard_1', 'FL_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_1_schitanye',
-                                                                                'POW_hardsoft_2_schitanye']):
-            with open("config_stand.json", "r+") as jsonFile:
-                data = json.load(jsonFile)
-                data["weight_path"] = chkpths[i]
-                jsonFile.seek(0)  # rewind
-                json.dump(data, jsonFile)
-                jsonFile.truncate()
+        with open('comparison_default_correct.csv', 'w', newline='') as csvFile:
 
-            test(model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value)
-            print('Elapsed time: ', time.time() - start_time)
-
+            writer = csv.writer(csvFile)
+            writer.writerow(["Model", "Mihail_acc", "Mihail_p", "Mihail_r", "Mihail_f1",
+                             "Gramota_acc", "Gramota_p", "Gramota_r", "Gramota_f1",
+                             "Full_acc", "Full_p", "Full_r", "Full_f1",
+                             "Tsya_acc", "Tsya_p", "Tsya_r", "Tsya_f1"])
+            for i, model_name in enumerate(['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
+                                            'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
+                                            'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye']):
+                with open("config_stand.json", "r+") as jsonFile:
+                    data = json.load(jsonFile)
+                    data["weight_path"] = chkpths[i]
+                    print(model_name)
+                    if i > 4:
+                        data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                                              "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+                    else:
+                        data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                                              "REPLACE_tysya", "REPLACE_tsya"]
+                    jsonFile.seek(0)  # rewind
+                    json.dump(data, jsonFile)
+                    jsonFile.truncate()
+                net = OrphoNet()
+                test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value)
+                print('Elapsed time: ', time.time() - start_time)
 
 
 if __name__ == '__main__':
@@ -183,5 +188,6 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file')
     my_args = parser.parse_args()
     path_to_file = my_args.file
-    
-    main(path_to_file, write_from_terminal=False, nn_testing=True, tsya_testing=True, calculate_metrics_nn=True, calculate_metrics_tsya=True, default_value='Incorrect')
+    #TODO default value!!!
+    main(path_to_file, write_from_terminal=False, nn_testing=True, tsya_testing=True, calculate_metrics_nn=True,
+         calculate_metrics_tsya=True, default_value='Correct')

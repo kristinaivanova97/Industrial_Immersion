@@ -22,10 +22,8 @@ class Errors(int, Enum):
 
 
 class TestPreprocess:
-    def __init__(self):
-        self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya","REPLACE_tsya","[##]"]
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
-        #              'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
+    def __init__(self, label_list):
+        self.label_list = label_list
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
@@ -115,7 +113,7 @@ class ProcessOutput:
         print("Mistake = {} \n".format(error))
 
     def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
-                                                                                default_value, threshold=0.5):
+                         default_value, threshold=0.5):
         # print(probabilities)
         # print(probabilities_o)
 
@@ -139,7 +137,6 @@ class ProcessOutput:
         message = "Correct"
         error = []
         correction_dict = {}
-        #all_probs_pow_case = []
         places = []
         words = []
         for pos, token in enumerate(tokens):
@@ -147,7 +144,6 @@ class ProcessOutput:
             k = 1
             if '##' not in token:
                 places.append(pos)
-                #all_probs_pow_case.append(probabilities[pos])
             if pos + k < len(tokens):
                 while '##' in tokens[pos + k]:
                     index = pos + k
@@ -160,12 +156,11 @@ class ProcessOutput:
         replace_tisya = np.where(preds == 6)[0].tolist()
         replace_n = np.where(preds == 5)[0].tolist()
         replace_nn = np.where(preds == 4)[0].tolist()
+        incorrect_count = len(replace_tsya) + len(replace_tisya) + len(replace_n) + len(replace_nn)
         # replace_tsya = np.where(preds==4)[0].tolist()
         # replace_tisya = np.where(preds==3)[0].tolist()
         # replace_n = np.where(preds==2)[0].tolist()
         # replace_nn = np.where(preds==1)[0].tolist()
-        # probs = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
-        # probs_o = np.empty(len(replace_tsya + replace_tisya + replace_n + replace_nn))
         probs = []
         probs_o = []
 
@@ -224,57 +219,66 @@ class ProcessOutput:
             r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
             re.IGNORECASE)
         place = 0
+
         for index, pos in enumerate(places[1:-1]):
             word = words[index + 1]
             if word in incorrect_words_tisya:
                 correction_dict.setdefault(index, [])
                 error.append("Тся -> ться")
                 word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-                if word_correct in tisya_existing_words:
+                if word_correct.lower() in tisya_existing_words:
                     correct_text = correct_text.replace(word, word_correct)
-                    correction_dict[index] = [word + "->" + word_correct, probs[place], "Тся -> ться"]
+                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "Тся -> ться",
+                                              len(word_correct.encode("utf8"))]
                 else:
-                    if message != "Incorrect" and default_value != "Correct":
+                    if incorrect_count == 1 and default_value == 'Correct':
                         message = default_value
-                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
+                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
+                                              len(word.encode("utf8"))]
                 place += 1
             elif word in incorrect_words_tsya:
                 correction_dict.setdefault(index, [])
                 error.append("Ться -> тся")
                 word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-                if word_correct in tsya_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, probs[place], "Ться -> тся"]
+                if word_correct.lower() in tsya_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "Ться -> тся",
+                                              len(word_correct.encode("utf8"))]
                     correct_text = correct_text.replace(word, word_correct)
                 else:
-                    if message != "Incorrect" and default_value != "Correct":
+                    if incorrect_count == 1 and default_value == 'Correct':
                         message = default_value
-                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
+                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
+                                              len(word.encode("utf8"))]
                 place += 1
             elif word in incorrect_words_n:
                 correction_dict.setdefault(index, [])
                 error.append("нн -> н")
                 word_correct = pattern_nn_cased.sub('Н', word)
                 word_correct = pattern_nn.sub('н', word_correct)
-                if word_correct in n_nn_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, probs[place], "нн -> н"]
+                if word_correct.lower() in n_nn_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "нн -> н",
+                                              len(word_correct.encode("utf8"))]
                     correct_text = correct_text.replace(word, word_correct)
                 else:
-                    if message != "Incorrect" and default_value != "Correct":
+                    if incorrect_count == 1 and default_value == 'Correct':
                         message = default_value
-                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
+                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
+                                              len(word.encode("utf8"))]
                 place += 1
             elif word in incorrect_words_nn:
                 correction_dict.setdefault(index, [])
                 error.append("н -> нн")
                 word_correct = pattern_n_cased.sub('НН', word)
                 word_correct = pattern_n.sub('нн', word_correct)
-                if word_correct in n_nn_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, probs[place], "н -> нн"]
+                if word_correct.lower() in n_nn_existing_words:
+                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "н -> нн",
+                                              len(word_correct.encode("utf8"))]
                     correct_text = correct_text.replace(word, word_correct)
                 else:
-                    if message != "Incorrect" and default_value != "Correct":
+                    if (incorrect_count == 1) and (default_value == 'Correct'):
                         message = default_value
-                    correction_dict[index] = [word, 1 - probs_o[place], "Ошибка, но исправление не возможно"]
+                    correction_dict[index] = [word, str((1 - probs_o[place])), "Ошибка, но исправление невозможно",
+                                              len(word.encode("utf8"))]
                 place += 1
         #self.print_results(tokens, preds, initial_text, correct_text, message, error)
 
@@ -408,7 +412,7 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
     parts = ["train", "val", "test"]
 
     with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
-        #with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
 
             input_data = f['input_ids']
             idxs = list(range(len(input_data)))
