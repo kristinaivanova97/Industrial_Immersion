@@ -51,7 +51,7 @@ class DataPreprocess:
                     else:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
-                                                                                              part_of_word=False)
+                                                                                              part_of_word=True)
 
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
@@ -177,10 +177,10 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 def main():
 
-#    data_processor = DataPreprocess()
-#    data_processor.process_batch()
+    data_processor = DataPreprocess()
+    data_processor.process_batch()
 
-    to_train_val_test_hdf(data_dir='./new_data_pow/', output_dir='./new_data_split/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
+    to_train_val_test_hdf(data_dir='./new_endings_data_pow/', output_dir='./new_endings_data_split_pow/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":

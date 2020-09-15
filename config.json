@@ -1,6 +1,6 @@
 {
 	"epochs": 3,
-	"batch_size": 1,
+	"batch_size": 5,
 	"from_bert": true,
 	"label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",
 	                      "[##]"],
@@ -22,6 +22,6 @@
 		"eps": 1e-8
 	},
 	"seed_val": 42,
-	"data_dir_with_full_labels_hdf": "./new_data_pow/",
-	"path_train_data_full_conll": "./dataset_plus_correct.txt"
+	"data_dir_with_full_labels_hdf": "./new_endings_data_pow/",
+	"path_train_data_full_conll": "./dataset_new_endings_test.txt"
 }
