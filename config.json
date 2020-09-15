@@ -23,5 +23,7 @@
 	},
 	"seed_val": 42,
 	"data_dir_with_full_labels_hdf": "./new_endings_data_pow/",
-	"path_train_data_full_conll": "./dataset_new_endings_test.txt"
+	"path_train_data_full_conll": "./dataset_new_endings_test.txt",
+	"output_dir_train_val_test_split": "./new_endings_data_split_pow/",
+	"chkp_path": "Chkpt_part_of_word_new_deeppavlov.pth"
 }

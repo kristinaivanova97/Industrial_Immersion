@@ -176,11 +176,13 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
 
 
 def main():
+    with open('config.json', 'r') as config_file:
+        config = json.load(config_file)
 
     data_processor = DataPreprocess()
     data_processor.process_batch()
 
-    to_train_val_test_hdf(data_dir='./new_endings_data_pow/', output_dir='./new_endings_data_split_pow/', train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
+    to_train_val_test_hdf(data_dir=config['data_dir_with_full_labels_hdf'], output_dir=config['output_dir_train_val_test_split'], train_part=0.6, val_part=0.2, test_part=0.2, length=140000, random_seed=1)
 
 
 if __name__ == "__main__":
