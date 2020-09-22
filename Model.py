@@ -1,3 +1,4 @@
+import json
 import time
 import datetime
 import random
@@ -8,7 +9,7 @@ import h5py
 from tqdm import tqdm
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForTokenClassification
+from transformers import BertTokenizer, BertForTokenClassification, AutoModelWithLMHead, AutoTokenizer
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from scipy.special import softmax
@@ -55,32 +56,30 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, label_list, weight_path=None, train_from_chk=False, device=device):
+    def __init__(self, seed_val,  optimizer, tokenizer, label_list, from_rubert, config_of_model, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
         self.label_list = label_list
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):
             self.label_map[label] = i
-
-        self.model = BertForTokenClassification.from_pretrained(
-            'bert-base-multilingual-cased',
-            num_labels=len(self.label_list),
-            output_attentions=False,
-            output_hidden_states=False,
-        )
+        if from_rubert:
+            self.model = BertForTokenClassification.from_pretrained(
+                **config_of_model,
+                num_labels=len(self.label_list)
+            )
+        else:
+            self.model = AutoModelWithLMHead.from_pretrained(
+                **config_of_model
+            )
 
         if train_from_chk:
             self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-
-        self.optimizer = AdamW(self.model.parameters(),
-                               lr=2e-5,  #  args.learning_rate - default is 5e-5
-                               eps=1e-8  #  args.adam_epsilon  - default is 1e-8.
-                               )
+        self.tokenizer = tokenizer
+        self.optimizer = optimizer
         self.model.to(device)
-        self.seed_val = 42
+        self.seed_val = seed_val #42
 
     def format_time(self, elapsed):
 
@@ -112,9 +111,10 @@ class TsyaModel:
 
         return train_dataloader, validation_dataloader
 
-    def train(self, train_data_processor, val_data_processor, chkp_path, epochs=3, batch_size=6):
-        if not chkp_path:
-            chkp_path = self.weight_path
+
+    def train(self, chkp_path, train_data_processor, val_data_processor, epochs, batch_size):
+        # if not chkp_path:
+        #     chkp_path = self.weight_path
 
         train_dataloader, validation_dataloader = self._dataset(train_data_processor, val_data_processor, batch_size)
 
@@ -223,6 +223,7 @@ class TsyaModel:
                 total_eval_loss += loss.item()
                 logits = logits.detach().cpu().numpy()
                 label_ids = b_labels.to('cpu').numpy()
+
                 total_eval_accuracy += self.flat_accuracy(logits, label_ids)
             print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
             last = np.argmax(logits, axis=2)

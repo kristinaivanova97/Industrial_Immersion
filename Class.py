@@ -1,3 +1,5 @@
+import json
+
 import os
 import re
 import random
@@ -7,7 +9,7 @@ from enum import Enum
 
 import h5py
 import numpy as np
-from transformers import BertTokenizer
+from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoModelWithLMHead, AutoTokenizer
 from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
@@ -22,12 +24,17 @@ class Errors(int, Enum):
 
 
 class TestPreprocess:
-    def __init__(self, label_list):
-        #self.label_list = label_list
-        #self.label_map = {label: i for i, label in enumerate(self.label_list)}
+    def __init__(self):
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        self.label_list = config['label_list']
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
-        
+        if config['from_bert']:
+            self.tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
+
     def process(self, text, max_seq_length=512, batch_size=16):
         input_ids_full = []
         attention_masks = []
@@ -94,8 +101,16 @@ class TestPreprocess:
 class ProcessOutput:
 
     def __init__(self):
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+        self.label_list = config['label_list']
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
-        self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        if config['from_bert']:
+            self._tokenizer = BertTokenizer.from_pretrained(config['config_of_tokenizer'])
+        else:
+            self._tokenizer = AutoTokenizer.from_pretrained(config['config_of_tokenizer'])
+
         # load dictionaries
         with open('data/tsya_vocab.txt', 'r') as f:
             pairs = f.read().splitlines()
@@ -506,71 +521,3 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-
-def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_part=0.6,
-                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
-
-    if not data_dir:
-        data_dir = './new_data/'
-
-    if not output_dir:
-        output_dir = './data/'
-
-    parts = ["train", "val", "test"]
-
-    with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
-        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
-
-            input_data = f['input_ids']
-            idxs = list(range(len(input_data)))
-            random.seed(random_seed)
-            random.shuffle(idxs)
-
-            if use_both_datasets:
-                input_data2 = f2['input_ids']
-                idxs2 = list(range(len(input_data2)))
-                random.shuffle(idxs2)
-
-            points = (
-                int(train_part * length),
-                int(train_part * length + val_part * length),
-                length
-            )
-
-            for params in zip(parts, (0,) + points[:-1], points):
-
-                part, start, end = params
-                with h5py.File(os.path.join(output_dir, f"{part}.hdf5"), 'w') as file:
-
-                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
-                        counter = 0
-                        dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
-                        output_data = file.create_dataset(ftype, (end-start, 512),
-                                                          maxshape=(1000000, 512),
-                                                          dtype=dtype_dict[ftype])
-                        if use_both_datasets:
-
-                            input_data = f[ftype]
-                            input_data2 = f2[ftype]
-
-                            for index in tqdm(idxs[start//2:end//2]):
-
-                                # if ftype == 'label_ids':
-                                #     buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
-                                #     print(buffer)
-                                # else:
-                                #     buffer = input_data[index, :]
-                                # output_data[counter, :] = buffer
-
-                                output_data[counter, :] = input_data[index, :]
-                                counter += 1
-                            for index in tqdm(idxs2[start // 2:end // 2]):
-                                output_data[counter, :] = input_data2[index, :]
-                                counter += 1
-                        else:
-
-                            input_data = f[ftype]
-
-                            for index in tqdm(idxs[start:end]):
-                                output_data[counter, :] = input_data[index, :]
-                                counter += 1

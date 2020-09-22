@@ -1,4 +1,8 @@
 import json
+
+import torch
+from transformers import BertTokenizer, AutoTokenizer
+
 from Model import GetIndices, TsyaModel
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -29,6 +33,13 @@ def main():
     print("Num of sequences = ", len(val_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
+    if configs['from_rubert']:
+        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+
+    adam_options = configs['adam_options']
     model = TsyaModel(label_list=configs["label_list"], weight_path=None, train_from_chk=configs["train_from_chk"])
     model.train(train_data_processor, val_data_processor, chkp_path=configs["weight_path"], epochs=configs["epochs"],
                 batch_size=configs["batch_size"])

@@ -1,22 +1,26 @@
-import h5py
-from tqdm import tqdm
-from transformers import BertTokenizer
-import numpy as np
-from Class import to_train_val_test_hdf
+import os
+
+import random
+
 import json
+
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
+
+import h5py
+from tqdm import tqdm
+from transformers import BertTokenizer, AutoTokenizer
+import numpy as np
 
 
 class DataPreprocess:
     
-    def __init__(self, path_to_file, label_list):
+    def __init__(self, path_to_file, label_list, tokenizer):
 
-        label_list = label_list
         self.label_map = {label: i for i, label in enumerate(label_list)}
-
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        self.tokenizer = tokenizer
         self.file = path_to_file
+        # self.data_dir = config['data_dir_with_full_labels_hdf']
 
     def process_batch(self, output_file, data_dir, part_of_word, file_size=1200000):
 
@@ -29,6 +33,7 @@ class DataPreprocess:
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
                 i = 0
+                pbar = tqdm(total=29247027)
                 list_of_words = []
                 list_of_labeles = []
                 print(dset_input_ids.shape)
@@ -41,14 +46,13 @@ class DataPreprocess:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
                                                                                               part_of_word=part_of_word)
-
-                        if (i % 10000) == 0:
-                            print(i)
+                        #КОСТЫЛЬ
                         if i >= file_size-1:
                             print(i, list_of_labeles, input_ids.shape)
                             dset_input_ids.resize((i + 1, 512))
                             dset_input_mask.resize((i + 1, 512))
                             dset_label_ids.resize((i + 1, 512))
+
                         dset_input_ids[i, :] = input_ids[:]
                         dset_input_mask[i, :] = input_mask[:]
                         dset_label_ids[i, :] = label_ids[:]
@@ -60,7 +64,15 @@ class DataPreprocess:
                     stripped_line = line.strip()
                     line_list = stripped_line.split()
 
-    def convert_single_example(self, sentence, sentence_labels, max_seq_length=512, part_of_word=False):
+                    pbar.update(1)
+
+                pbar.close()
+
+
+
+
+
+    def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512, part_of_word = False):
 
         tokens = []
         labels = []
@@ -114,15 +126,92 @@ class DataPreprocess:
         return np.asarray(input_ids), np.asarray(input_mask), np.asarray(label_ids), np.asarray(nopad)
 
 
+def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_part=0.6,
+                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
+
+    if not data_dir:
+        data_dir = './new_data/'
+
+    if not output_dir:
+        output_dir = './data/'
+
+    parts = ["train", "val", "test"]
+
+    with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
+        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+
+            input_data = f['input_ids']
+            idxs = list(range(len(input_data)))
+            random.seed(random_seed)
+            random.shuffle(idxs)
+
+            if use_both_datasets:
+                input_data2 = f2['input_ids']
+                idxs2 = list(range(len(input_data2)))
+                random.shuffle(idxs2)
+
+            points = (
+                int(train_part * length),
+                int(train_part * length + val_part * length),
+                length
+            )
+
+            for params in zip(parts, (0,) + points[:-1], points):
+
+                part, start, end = params
+                with h5py.File(os.path.join(output_dir, f"{part}.hdf5"), 'w') as file:
+
+                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+                        counter = 0
+                        dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
+                        output_data = file.create_dataset(ftype, (end-start, 512),
+                                                          maxshape=(1000000, 512),
+                                                          dtype=dtype_dict[ftype])
+                        if use_both_datasets:
+
+                            input_data = f[ftype]
+                            input_data2 = f2[ftype]
+
+                            for index in tqdm(idxs[start//2:end//2]):
+
+                                # if ftype == 'label_ids':
+                                #     buffer = [-100 if x in [0, 1, 2, 8] else x - 3 for x in input_data[index, :]]
+                                #     print(buffer)
+                                # else:
+                                #     buffer = input_data[index, :]
+                                # output_data[counter, :] = buffer
+
+                                output_data[counter, :] = input_data[index, :]
+                                counter += 1
+                            for index in tqdm(idxs2[start // 2:end // 2]):
+                                output_data[counter, :] = input_data2[index, :]
+                                counter += 1
+                        else:
+
+                            input_data = f[ftype]
+
+                            for index in tqdm(idxs[start:end]):
+                                output_data[counter, :] = input_data[index, :]
+                                counter += 1
+
+
+
 def main():
 
     with open("config_datapreprocess.json") as json_data_file:
         configs = json.load(json_data_file)
-    data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"])
+
+    if not configs['from_rubert']:
+        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+
+
+    data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"], tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
                                  part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
     print("Finished with news")
-    data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"])
+    data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"], tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["data_path"],
                                  part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
     print("processed")
