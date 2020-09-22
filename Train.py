@@ -7,7 +7,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 from Model import GetIndices, TsyaModel
 
 max_seq_length = 512 # for bert this limit exists
-chkp_path = "Chkpt_part_of_word_new_deeppavlov.pth"
+#chkp_path = "Chkpt_part_of_word_new_deeppavlov.pth"
 
 def main():
     with open('config.json', 'r') as config_file:
