@@ -41,7 +41,6 @@ class GetIndices:
                 line_list = stripped_line.split()
                 list_of_lists.append(line_list)
 
-
             my_file.close()
             for j in range(len(list_of_lists)):
                 features[i].append(list(map(int, list_of_lists[j])))
@@ -49,9 +48,9 @@ class GetIndices:
     def upload_hdf(self):
 
         with h5py.File(self.file_hdf, 'r') as f:
-            self.input_ids = f['input_ids'][:,:]
-            self.input_mask = f['input_mask'][:,:]
-            self.label_ids = f['label_ids'][:,:]
+            self.input_ids = f['input_ids'][:, :]
+            self.input_mask = f['input_mask'][:, :]
+            self.label_ids = f['label_ids'][:, :]
 
 
 class TsyaModel:
@@ -59,10 +58,6 @@ class TsyaModel:
     def __init__(self, label_list, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya","[##]"]
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
-        #self.label_list = ["[PAD]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"]
-        #self.label_list = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya",'REPLACE_techenie', 'REPLACE_techenii', "[##]"]
         self.label_list = label_list
         self.label_map = {}
         for (i, label) in enumerate(self.label_list):

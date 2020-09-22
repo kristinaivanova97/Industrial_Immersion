@@ -32,7 +32,7 @@ def extract_signs(test_file, suffix):
 
 def print_to_file(net, file, sentence, default_value):
 
-    answer = net.execute_old([sentence], default_value)
+    answer = net.execute_old(sentence, default_value)
     if len(answer) > 1:
         correct_sentence = answer[2]
         message = answer[0]
@@ -71,7 +71,7 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
     acc_tsya, precision_tsya, recall_tsya, f1_tsya = np.nan, np.nan, np.nan, np.nan
 
     if nn_testing:
-        for test_file in ["test_nn/Gramota", "test_nn/Michail_collection"]:
+        for test_file in ["test_nn/Gramota_doubled", "test_nn/Michail_collection_doubled"]:
             with open(test_file + '.txt', 'r') as file:
                 text = [line.strip() for line in file]
 
@@ -79,17 +79,17 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
                 for sentence in text:
                     sentence, _, _ = sentence.rpartition(',')
                     print_to_file(net, file, sentence, default_value)
-        with open('test_nn/Mozhno_itak_itak' + '.txt', 'r') as file:
+        with open('test_nn/Mozhno_itak_itak_doubled' + '.txt', 'r') as file:
             text = [line.strip() for line in file]
 
-        with open('test_nn/Mozhno_itak_itak' + suffix + '.txt', 'w') as file:
+        with open('test_nn/Mozhno_itak_itak_doubled' + suffix + '.txt', 'w') as file:
             for sentence in text:
                 print_to_file(net, file, sentence, default_value)
 
     if calculate_metrics_nn:
-        test_file1 = "test_nn/Michail_collection"
+        test_file1 = "test_nn/Michail_collection_doubled"
         signs_true, signs = extract_signs(test_file1, suffix)
-        test_file2 = "test_nn/Gramota"
+        test_file2 = "test_nn/Gramota_doubled"
         signs_true2, signs2 = extract_signs(test_file2, suffix)
 
         signs_true = signs_true[signs != 2]
@@ -111,7 +111,7 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
         data['new_model_correct'] = np.nan
         for i in range(len(data)):
             sentence = data['text'].iloc[i]
-            answer = net.execute_old([sentence], default_value)
+            answer = net.execute_old(sentence, default_value)
             correct_sentence = answer[2]
             data['new_model_v2'].iloc[i] = '+' if answer[0] == 'Correct' else '-'
             data['new_model_correct'].iloc[i] = correct_sentence
@@ -146,29 +146,34 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
 
     else:
         start_time = time.time()
-        suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
-                    '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
-                    '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
-        chkpths = ['Chkpt_full_labels.pth', 'Chkpt_fl_hardsoft_1set.pth', 'Chkpt_fl_hardsoft_2set.pth',
-                   'Chkpt_fl_hardsoft_schitanye_1set.pth', 'Chkpt_fl_hardsoft_schitanye_2set.pth',
-                   'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
-                   'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
+        suffixes = ['_answered_fl_hardsoft_correct_1set', '_answered_fl_hardsoft_correct_2set',
+                    '_answered_pow_hardsoft_correct_1set', '_answered_pow_hardsoft_correct_2set']
+        chkpths = ['Chkpt_fl_hardsoft_correct_1set.pth', 'Chkpt_fl_hardsoft_correct_2set.pth',
+                   'Chkpt_pow_hardsoft_correct_1set.pth', 'Chkpt_pow_hardsoft_correct_2set.pth']
+        # suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
+        #             '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
+        #             '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
+        # chkpths = ['Chkpt_full_labels.pth', 'Chkpt_fl_hardsoft_1set.pth', 'Chkpt_fl_hardsoft_2set.pth',
+        #            'Chkpt_fl_hardsoft_schitanye_1set.pth', 'Chkpt_fl_hardsoft_schitanye_2set.pth',
+        #            'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
+        #            'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
 
-        with open('comparison_default_correct.csv', 'w', newline='') as csvFile:
+        with open('comparison_universal_default_incorrect.csv', 'w', newline='') as csvFile:
 
             writer = csv.writer(csvFile)
             writer.writerow(["Model", "Mihail_acc", "Mihail_p", "Mihail_r", "Mihail_f1",
                              "Gramota_acc", "Gramota_p", "Gramota_r", "Gramota_f1",
                              "Full_acc", "Full_p", "Full_r", "Full_f1",
                              "Tsya_acc", "Tsya_p", "Tsya_r", "Tsya_f1"])
-            for i, model_name in enumerate(['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
-                                            'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
-                                            'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye']):
+            # (['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
+            #   'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
+            #   'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye'])
+            for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'POW_hardsoft_1', 'POW_hardsoft_2']):
                 with open("config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
                     data["weight_path"] = chkpths[i]
                     print(model_name)
-                    if i > 4:
+                    if i > 1:
                         data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
                                               "REPLACE_tysya", "REPLACE_tsya", "[##]"]
                     else:
@@ -178,7 +183,8 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
                     json.dump(data, jsonFile)
                     jsonFile.truncate()
                 net = OrphoNet()
-                test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value)
+                test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn,
+                     calculate_metrics_tsya, default_value)
                 print('Elapsed time: ', time.time() - start_time)
 
 
@@ -190,4 +196,4 @@ if __name__ == '__main__':
     path_to_file = my_args.file
     #TODO default value!!!
     main(path_to_file, write_from_terminal=False, nn_testing=True, tsya_testing=True, calculate_metrics_nn=True,
-         calculate_metrics_tsya=True, default_value='Correct')
+         calculate_metrics_tsya=True, default_value='Incorrect')

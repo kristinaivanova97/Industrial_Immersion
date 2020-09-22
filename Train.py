@@ -9,7 +9,7 @@ def main():
     with open("config_train.json") as json_data_file:
         configs = json.load(json_data_file)
 
-    train_data_processor = GetIndices(ftype='train', data_dir=configs["data_path"])
+    train_data_processor = GetIndices(ftype=configs["train_ftype"], data_dir=configs["data_path"])
     train_data_processor.upload_hdf()
     assert len(train_data_processor.input_ids[0]) == configs["max_seq_length"]
     assert len(train_data_processor.input_mask[0]) == configs["max_seq_length"]
@@ -19,7 +19,7 @@ def main():
     print("Num of sequences = ", len(train_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-    val_data_processor = GetIndices(ftype='val', data_dir=configs["data_path"])
+    val_data_processor = GetIndices(ftype=configs["val_ftype"], data_dir=configs["data_path"])
     val_data_processor.upload_hdf()
     assert len(val_data_processor.input_ids[0]) == configs["max_seq_length"]
     assert len(val_data_processor.input_mask[0]) == configs["max_seq_length"]

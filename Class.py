@@ -23,8 +23,8 @@ class Errors(int, Enum):
 
 class TestPreprocess:
     def __init__(self, label_list):
-        self.label_list = label_list
-        self.label_map = {label: i for i, label in enumerate(self.label_list)}
+        #self.label_list = label_list
+        #self.label_map = {label: i for i, label in enumerate(self.label_list)}
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         
@@ -41,9 +41,7 @@ class TestPreprocess:
             if len(tokens) >= max_seq_length - 1:
                 tokens = tokens[0:(max_seq_length - 2)]
             ntokens = []
-            label_ids = []
             ntokens.append("[CLS]")
-            label_ids.append(self.label_map["[CLS]"])
             for k, token in enumerate(tokens):
                 ntokens.append(token)
                     
@@ -67,6 +65,7 @@ class TestPreprocess:
         prediction_sampler = SequentialSampler(prediction_data)
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
+
     def check_contain_tsya_or_nn(self, data):
 
         data_with_tsya_or_nn = []
@@ -74,8 +73,10 @@ class TestPreprocess:
         tsiya_search = re.compile(r'ться\b')
         # nn_search = re.compile(r'\wнн([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
         # n_search = re.compile(r'[аоэеиыуёюя]н([аоы]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых)\b', re.IGNORECASE)
-        nn_search = re.compile(r'\wнн([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b', re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
-        n_search = re.compile(r'[аоэеиыуёюя]н([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b', re.IGNORECASE)
+        nn_search = re.compile(r'\wнн([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b',
+                               re.IGNORECASE) # the words, which contain "н" in the middle or in the end of word
+        n_search = re.compile(r'[аоэеиыуёюя]н([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b',
+                              re.IGNORECASE)
 
         for sentence in data:
 
@@ -89,13 +90,34 @@ class TestPreprocess:
 
         return data_with_tsya_or_nn
 
+
 class ProcessOutput:
 
     def __init__(self):
 
         self._tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        # load dictionaries
+        with open('data/tsya_vocab.txt', 'r') as f:
+            pairs = f.read().splitlines()
+        self.tisya_existing_words = set([pair.split('\t')[0] for pair in pairs])
+        self.tsya_existing_words = set([pair.split('\t')[1] for pair in pairs])
+        with open('data/all_n_nn_words_full_endings.txt', 'r') as f:
+            self.n_nn_existing_words = set(f.read().splitlines())
 
-    def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text, message, error):
+        self.pattern_n_cased = re.compile(
+            r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+            re.IGNORECASE)
+        self.pattern_nn_cased = re.compile(
+            r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+            re.IGNORECASE)
+        self.pattern_nn = re.compile(
+            r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+            re.IGNORECASE)
+        self.pattern_n = re.compile(
+            r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+            re.IGNORECASE)
+
+    def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text):
         print("Tokens = ", tokens, file=file_name)
         print("Prediction = ", preds, file=file_name)
         print("Initial text = {} \n".format(initial_text), file=file_name)
@@ -112,23 +134,130 @@ class ProcessOutput:
             error = ['None']
         print("Mistake = {} \n".format(error))
 
+    def check_contain_mistakes(self, tok_place, probability, probability_o,
+                               replace_tsya, replace_tisya, replace_n, replace_nn, threshold,
+                               tok_replace_probs, tok_hold_probs):
+        tok_error_type = ''
+        if (tok_place in replace_tsya) and (probability > threshold):
+            tok_replace_probs.append(probability)
+            tok_hold_probs.append(probability_o)
+            tok_error_type = 'ться -> тся'
+        elif (tok_place in replace_tisya) and (probability > threshold):
+            tok_replace_probs.append(probability)
+            tok_hold_probs.append(probability_o)
+            tok_error_type = 'тся -> ться'
+        elif (tok_place in replace_n) and (probability > threshold):
+            tok_replace_probs.append(probability)
+            tok_hold_probs.append(probability_o)
+            tok_error_type = 'нн -> н'
+        elif (tok_place in replace_nn) and (probability > threshold):
+            tok_replace_probs.append(probability)
+            tok_hold_probs.append(probability_o)
+            tok_error_type = 'н -> нн'
+        return tok_error_type
+
+    def check_in_dictionary(self, existing_words, word, place, tok_error_type, word_correct, dicty, correct_text, error_prob, hold_prob, default_value):
+        if word_correct.lower() in existing_words:
+            correct_text = correct_text.replace(word, word_correct)
+            dicty[place] = [word + "->" + word_correct, str(error_prob), tok_error_type,
+                            len(word_correct.encode("utf8"))]
+        elif default_value == 'Incorrect':
+            dicty[place] = [word, str(1 - hold_prob), "Ошибка, но исправление невозможно", len(word.encode("utf8"))]
+        elif default_value == 'Correct':
+            dicty.pop(place)
+        return correct_text
+
+    def check_in_dictionary_old(self, existing_words, word, index, tok_error_type, word_correct, dicty,
+                                correct_text, error_prob, hold_prob, default_value, incorrect_count, message):
+
+        if word_correct.lower() in existing_words:
+            dicty[index] = [word + "->" + word_correct, str(error_prob), tok_error_type,
+                                      len(word_correct.encode("utf8"))]
+            correct_text = correct_text.replace(word, word_correct)
+        else:
+            if incorrect_count == 1 and default_value == 'Correct':
+                message = default_value
+            dicty[index] = [word, str(1 - hold_prob), "Ошибка, но исправление невозможно",
+                                      len(word.encode("utf8"))]
+
+        return message, correct_text
+
+    def process_sentence_optimal(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
+                                 default_value, threshold=0.5):
+
+        tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
+        correct_text = text_data[0]
+        preds = np.array(prediction[0][0])
+        replace_tsya = np.where(preds == 7)[0].tolist()
+        replace_tisya = np.where(preds == 6)[0].tolist()
+        replace_n = np.where(preds == 5)[0].tolist()
+        replace_nn = np.where(preds == 4)[0].tolist()
+        words = []
+        words_error = []
+        words_probs = []
+        incorrect_words = []
+        correction_dict = {}
+        for tok_place, token in enumerate(tokens):
+            tok_replace_probs = []
+            tok_hold_probs = []
+            word = token
+            k = 1
+            if '##' not in token:
+                tok_error_type = self.check_contain_mistakes(tok_place, probabilities[tok_place],
+                                                             probabilities_o[tok_place], replace_tsya,
+                                                                        replace_tisya, replace_n, replace_nn, threshold,
+                                                                        tok_replace_probs, tok_hold_probs)
+
+                if tok_place + k < len(tokens):
+                    while '##' in tokens[tok_place + k]:
+                        word += tokens[tok_place + k][2:]
+                        tok_error_type = self.check_contain_mistakes(tok_place, probabilities[tok_place],
+                                                                     probabilities_o[tok_place], replace_tsya,
+                                                                     replace_tisya, replace_n, replace_nn,
+                                                                     threshold, tok_replace_probs, tok_hold_probs)
+                        k += 1
+                words.append(word)
+                if len(tok_error_type) > 0:
+                    words_error.append(tok_error_type)
+                if len(tok_replace_probs) > 0:
+
+                    correction_dict.setdefault(tok_place, [])
+                    word_error_prob = max(tok_replace_probs)
+                    words_probs.append(word_error_prob)
+                    word_hold_prob = max(tok_hold_probs)
+                    incorrect_words.append(word)
+                    if tok_error_type == 'ться -> тся':
+                        word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
+                        correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place, tok_error_type, word_correct,
+                                                 correction_dict, correct_text, word_error_prob,
+                                                 word_hold_prob, default_value)
+                    elif tok_error_type == 'тся -> ться':
+                        word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
+                        correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place, tok_error_type, word_correct,
+                                                 correction_dict, correct_text, word_error_prob,
+                                                 word_hold_prob, default_value)
+
+                    elif tok_error_type == 'н -> нн':
+                        word_correct = self.pattern_n_cased.sub('НН', word)
+                        word_correct = self.pattern_n.sub('нн', word_correct)
+                        correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place, tok_error_type, word_correct,
+                                                 correction_dict, correct_text, word_error_prob,
+                                                 word_hold_prob, default_value)
+                    elif tok_error_type == 'нн -> н':
+                        word_correct = self.pattern_nn_cased.sub('Н', word)
+                        word_correct = self.pattern_nn.sub('н', word_correct)
+                        correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place, tok_error_type, word_correct,
+                                                 correction_dict, correct_text, word_error_prob,
+                                                 word_hold_prob, default_value)
+        return correct_text, correction_dict, words_error, words_probs
+
     def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
                          default_value, threshold=0.5):
         # print(probabilities)
         # print(probabilities_o)
-
-        # load dictionaries
-        with open('data/tsya_vocab.txt', 'r') as f:
-            pairs = f.read().splitlines()
-        tisya_existing_words = set([pair.split('\t')[0] for pair in pairs])
-        tsya_existing_words = set([pair.split('\t')[1] for pair in pairs])
-        with open('data/all_n_nn_words_full_endings.txt', 'r') as f:
-            n_nn_existing_words = set(f.read().splitlines())
-
         tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
-        initial_text = text_data[0]
         preds = np.array(prediction[0][0])
-        correct_text = initial_text
+        correct_text = text_data[0]
         incorrect_words = []
         incorrect_words_tisya = []
         incorrect_words_tsya = []
@@ -156,7 +285,7 @@ class ProcessOutput:
         replace_tisya = np.where(preds == 6)[0].tolist()
         replace_n = np.where(preds == 5)[0].tolist()
         replace_nn = np.where(preds == 4)[0].tolist()
-        incorrect_count = len(replace_tsya) + len(replace_tisya) + len(replace_n) + len(replace_nn)
+        incorrect_count = 0
         # replace_tsya = np.where(preds==4)[0].tolist()
         # replace_tisya = np.where(preds==3)[0].tolist()
         # replace_n = np.where(preds==2)[0].tolist()
@@ -193,93 +322,69 @@ class ProcessOutput:
                                 check_contain = False
                                 while '##' in tokens[replace_list[ids] + k]:
                                     word += tokens[replace_list[ids] + k][2:]
-                                    k += 1
+                                    #if (replace_list[ids]+k) in replace_list and '#' in tokens[replace_list[ids] + k]:
                                     if (replace_list[ids]+k) in replace_list:
                                         check_contain = True
+                                    k += 1
+
                                 if not check_contain:
                                     probs.append(current)
                                     probs_o.append(current_o)
                             else:
                                 probs.append(current)
                                 probs_o.append(current_o)
-                        if '##' not in word:
-                            incorrect_words.append(word)
-                            list_of_words_with_mistake[p].append(word)
+                                incorrect_count += 1
+                            if '##' not in word:
+                                incorrect_words.append(word)
+                                list_of_words_with_mistake[p].append(word)
 
-        pattern_n_cased = re.compile(
-            r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-            re.IGNORECASE)
-        pattern_nn_cased = re.compile(
-            r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-            re.IGNORECASE)
-        pattern_nn = re.compile(
-            r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-            re.IGNORECASE)
-        pattern_n = re.compile(
-            r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-            re.IGNORECASE)
         place = 0
-
+        amount_of_corrections = len(incorrect_words)
         for index, pos in enumerate(places[1:-1]):
             word = words[index + 1]
-            if word in incorrect_words_tisya:
-                correction_dict.setdefault(index, [])
-                error.append("Тся -> ться")
-                word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-                if word_correct.lower() in tisya_existing_words:
-                    correct_text = correct_text.replace(word, word_correct)
-                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "Тся -> ться",
-                                              len(word_correct.encode("utf8"))]
-                else:
-                    if incorrect_count == 1 and default_value == 'Correct':
-                        message = default_value
-                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
-                                              len(word.encode("utf8"))]
-                place += 1
-            elif word in incorrect_words_tsya:
-                correction_dict.setdefault(index, [])
-                error.append("Ться -> тся")
-                word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-                if word_correct.lower() in tsya_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "Ться -> тся",
-                                              len(word_correct.encode("utf8"))]
-                    correct_text = correct_text.replace(word, word_correct)
-                else:
-                    if incorrect_count == 1 and default_value == 'Correct':
-                        message = default_value
-                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
-                                              len(word.encode("utf8"))]
-                place += 1
-            elif word in incorrect_words_n:
-                correction_dict.setdefault(index, [])
-                error.append("нн -> н")
-                word_correct = pattern_nn_cased.sub('Н', word)
-                word_correct = pattern_nn.sub('н', word_correct)
-                if word_correct.lower() in n_nn_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "нн -> н",
-                                              len(word_correct.encode("utf8"))]
-                    correct_text = correct_text.replace(word, word_correct)
-                else:
-                    if incorrect_count == 1 and default_value == 'Correct':
-                        message = default_value
-                    correction_dict[index] = [word, str(1 - probs_o[place]), "Ошибка, но исправление невозможно",
-                                              len(word.encode("utf8"))]
-                place += 1
-            elif word in incorrect_words_nn:
-                correction_dict.setdefault(index, [])
-                error.append("н -> нн")
-                word_correct = pattern_n_cased.sub('НН', word)
-                word_correct = pattern_n.sub('нн', word_correct)
-                if word_correct.lower() in n_nn_existing_words:
-                    correction_dict[index] = [word + "->" + word_correct, str(probs[place]), "н -> нн",
-                                              len(word_correct.encode("utf8"))]
-                    correct_text = correct_text.replace(word, word_correct)
-                else:
-                    if (incorrect_count == 1) and (default_value == 'Correct'):
-                        message = default_value
-                    correction_dict[index] = [word, str((1 - probs_o[place])), "Ошибка, но исправление невозможно",
-                                              len(word.encode("utf8"))]
-                place += 1
+            if amount_of_corrections > 0:
+                if word in incorrect_words_tisya:
+                    correction_dict.setdefault(index, [])
+                    error.append("Тся -> ться")
+                    word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
+                    message, correct_text = self.check_in_dictionary_old(self.tisya_existing_words, word, index,
+                                                                         "Тся -> ться", word_correct, correction_dict,
+                                                                         correct_text, probs[place], probs_o[place],
+                                                                         default_value, incorrect_count, message)
+                    place += 1
+                    amount_of_corrections -= 1
+                elif word in incorrect_words_tsya:
+                    correction_dict.setdefault(index, [])
+                    error.append("Ться -> тся")
+                    word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
+                    message, correct_text = self.check_in_dictionary_old(self.tsya_existing_words, word, index,
+                                                                         "Ться -> тся", word_correct, correction_dict,
+                                                                         correct_text, probs[place], probs_o[place],
+                                                                         default_value, incorrect_count, message)
+                    place += 1
+                    amount_of_corrections -= 1
+                elif word in incorrect_words_n:
+                    correction_dict.setdefault(index, [])
+                    error.append("нн -> н")
+                    word_correct = self.pattern_nn_cased.sub('Н', word)
+                    word_correct = self.pattern_nn.sub('н', word_correct)
+                    message, correct_text = self.check_in_dictionary_old(self.n_nn_existing_words, word, index,
+                                                                         "нн -> н", word_correct, correction_dict,
+                                                                         correct_text, probs[place], probs_o[place],
+                                                                         default_value, incorrect_count, message)
+                    place += 1
+                    amount_of_corrections -= 1
+                elif word in incorrect_words_nn:
+                    correction_dict.setdefault(index, [])
+                    error.append("н -> нн")
+                    word_correct = self.pattern_n_cased.sub('НН', word)
+                    word_correct = self.pattern_n.sub('нн', word_correct)
+                    message, correct_text = self.check_in_dictionary_old(self.n_nn_existing_words, word, index,
+                                                                         "н -> нн", word_correct, correction_dict,
+                                                                         correct_text, probs[place], probs_o[place],
+                                                                         default_value, incorrect_count, message)
+                    place += 1
+                    amount_of_corrections -= 1
         #self.print_results(tokens, preds, initial_text, correct_text, message, error)
 
         return message, incorrect_words, correct_text, error, probs, probs_o, correction_dict
@@ -359,7 +464,7 @@ class ProcessOutput:
                     correct_text = correct_text.replace(word, word_correct)
 
                 pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-                                           re.IGNORECASE)
+                                             re.IGNORECASE)
                 pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
                 pattern_nn = re.compile(r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
                 pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
@@ -382,11 +487,13 @@ class ProcessOutput:
                 all_errors.append(error)
                 correct_text_full.append(correct_text)
 
-                step+=1
+                step += 1
 
         return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors,probs, probs_O
 
+
 def permutate(arr, saveOrder=True, seedValue=1):
+
    idxs = list(range(len(arr)))
    if saveOrder:
       random.seed(seedValue)
@@ -399,9 +506,9 @@ def permutate(arr, saveOrder=True, seedValue=1):
       raise TypeError
    return arr
 
-def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', train_part = 0.6,
-                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
 
+def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_part=0.6,
+                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
 
     if not data_dir:
         data_dir = './new_data/'
@@ -439,8 +546,8 @@ def to_train_val_test_hdf(data_dir = './new_data/', output_dir = './data/', trai
                         counter = 0
                         dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
                         output_data = file.create_dataset(ftype, (end-start, 512),
-                                                                      maxshape=(1000000, 512),
-                                                                      dtype=dtype_dict[ftype])
+                                                          maxshape=(1000000, 512),
+                                                          dtype=dtype_dict[ftype])
                         if use_both_datasets:
 
                             input_data = f[ftype]
