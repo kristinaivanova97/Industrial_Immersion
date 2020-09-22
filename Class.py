@@ -504,7 +504,7 @@ class ProcessOutput:
 
                 step += 1
 
-        return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors,probs, probs_O
+        return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors, probs, probs_O
 
 
 def permutate(arr, saveOrder=True, seedValue=1):
