@@ -1,9 +1,7 @@
 import json
-
-import torch
 from transformers import BertTokenizer, AutoTokenizer
-
 from Model import GetIndices, TsyaModel
+
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -34,7 +32,7 @@ def main():
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
     if not configs['from_rubert']:
-        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])

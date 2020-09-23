@@ -3,7 +3,7 @@
   "merge_datasets": true,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
   "data_path": "./data_fl_correct/",
-  "data_path_split": "./data_fl_split_hardsoft_correct_2set/",
+  "data_path_split": "./data_fl_split_hardsoft_correct_1set/",
   "path_to_news": "./datasets/news_dataset_hardsoft_correct.txt",
   "path_to_magazines": "./datasets/dataset_hardsoft_correct.txt",
   "part_of_word": false,
@@ -13,12 +13,13 @@
   "train_part": 0.6,
   "val_part": 0.2,
   "length_of_data": 140000,
-  "use_both_datasets": true,
+  "use_both_datasets": false,
   "percent_merge_2dsets": 0.7,
   "universal_txt_dir": "./universal_data_txt/",
   "data_universal_path": "./universal_data/",
   "from_bert": true,
   "seed_val": 42,
+  "from_rubert": false,
   "config_of_tokenizer":
 	{
 		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased",

@@ -196,16 +196,16 @@ def main():
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-    data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"],
-                                    tokenizer=tokenizer)
-    data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
-                                 part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
-    print("Finished with news")
-    data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"],
-                                    tokenizer=tokenizer)
-    data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["data_path"],
-                                 part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
-    print("processed")
+    # data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"],
+    #                                 tokenizer=tokenizer)
+    # data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
+    #                              part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
+    # print("Finished with news")
+    # data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"],
+    #                                 tokenizer=tokenizer)
+    # data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["data_path"],
+    #                              part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
+    # print("processed")
     to_train_val_test_hdf(data_dir=configs["data_path"], output_dir=configs["data_path_split"],
                           train_part=configs["train_part"], val_part=configs["val_part"],
                           length=configs["length_of_data"], random_seed=1,
@@ -215,4 +215,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
