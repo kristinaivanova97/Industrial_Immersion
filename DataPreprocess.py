@@ -1,16 +1,12 @@
 import os
-
-import random
-
-import json
-
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-
 import h5py
 from tqdm import tqdm
 from transformers import BertTokenizer, AutoTokenizer
 import numpy as np
+import random
+import json
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 
 class DataPreprocess:
@@ -20,7 +16,6 @@ class DataPreprocess:
         self.label_map = {label: i for i, label in enumerate(label_list)}
         self.tokenizer = tokenizer
         self.file = path_to_file
-        # self.data_dir = config['data_dir_with_full_labels_hdf']
 
     def process_batch(self, output_file, data_dir, part_of_word, file_size=1200000):
 
@@ -46,7 +41,7 @@ class DataPreprocess:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
                                                                                               part_of_word=part_of_word)
-                        #КОСТЫЛЬ
+                        # КОСТЫЛЬ
                         if i >= file_size-1:
                             print(i, list_of_labeles, input_ids.shape)
                             dset_input_ids.resize((i + 1, 512))
@@ -68,11 +63,7 @@ class DataPreprocess:
 
                 pbar.close()
 
-
-
-
-
-    def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512, part_of_word = False):
+    def convert_single_example(self, sentence, sentence_labels, max_seq_length=512, part_of_word=False):
 
         tokens = []
         labels = []
@@ -195,7 +186,6 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
                                 counter += 1
 
 
-
 def main():
 
     with open("config_datapreprocess.json") as json_data_file:
@@ -206,12 +196,13 @@ def main():
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-
-    data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"], tokenizer=tokenizer)
+    data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"],
+                                    tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
                                  part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
     print("Finished with news")
-    data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"], tokenizer=tokenizer)
+    data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"],
+                                    tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["data_path"],
                                  part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
     print("processed")

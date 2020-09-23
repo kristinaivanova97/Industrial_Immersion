@@ -8,7 +8,7 @@
   "path_to_magazines": "./datasets/dataset_hardsoft_correct.txt",
   "part_of_word": false,
   "max_seq_length": 512,
-  "news_filesize": 472632,
+  "news_filesize": 472640,
   "magazines_filesize": 1096091,
   "train_part": 0.6,
   "val_part": 0.2,
