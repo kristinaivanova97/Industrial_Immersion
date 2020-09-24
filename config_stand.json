@@ -2,7 +2,7 @@
   "weight_path": "Chkpt_fl_hardsoft_correct_2set.pth",
   "train_from_chk": true,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
-  "from_rubert": true,
+  "from_rubert": false,
   "seed_val": 42,
   "adam_options":
 	{

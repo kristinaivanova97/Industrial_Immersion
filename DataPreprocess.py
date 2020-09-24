@@ -192,7 +192,7 @@ def main():
         configs = json.load(json_data_file)
 
     if not configs['from_rubert']:
-        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 

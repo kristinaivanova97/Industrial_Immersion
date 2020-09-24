@@ -1,14 +1,13 @@
 {
-  "weight_path": "Chkpts/Chkpt_fl_hardsoft_correct_1set_old.pth",
+  "weight_path": "Chkpts/Chkpt_fl_hardsoft_correct_1set_full.pth",
   "train_from_chk": false,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
-  "data_path": "./data_fl_split_hardsoft_correct_1set/",
+  "data_path": "./data_fl_split_hardsoft_correct_full/",
   "max_seq_length": 512,
   "epochs": 3,
   "batch_size": 6,
   "train_ftype": "train",
   "val_ftype": "val",
-  "from_rubert": true,
   "seed_val": 42,
   "adam_options":
 	{

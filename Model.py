@@ -28,7 +28,6 @@ class GetIndices:
         self.input_mask = []
         self.label_ids = []
 
-
     def upload(self):
 
         features = [self.input_ids, self.input_mask, self.label_ids]
@@ -56,7 +55,8 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None, train_from_chk=False, device=device):
+    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None,
+                 train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
         self.label_list = label_list
@@ -80,10 +80,10 @@ class TsyaModel:
 
         self.tokenizer = tokenizer
         self.optimizer = AdamW(self.model.parameters(),
-                          **adam_options
-                         )
+                               **adam_options
+                               )
         self.model.to(device)
-        self.seed_val = seed_val #42
+        self.seed_val = seed_val  # 42
 
     def format_time(self, elapsed):
 
