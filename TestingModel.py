@@ -147,10 +147,8 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
     else:
         start_time = time.time()
         suffixes = ['_answered_fl_hardsoft_correct_1set', '_answered_fl_hardsoft_correct_2set',
-                    '_answered_fl_hardsoft_correct_2set_70_30',
                     '_answered_pow_hardsoft_correct_1set', '_answered_pow_hardsoft_correct_2set']
         chkpths = ['Chkpt_fl_hardsoft_correct_1set.pth', 'Chkpt_fl_hardsoft_correct_2set.pth',
-                   'Chkpt_fl_hardsoft_correct_2set_70_30.pth',
                    'Chkpt_pow_hardsoft_correct_1set.pth', 'Chkpt_pow_hardsoft_correct_2set.pth']
         # suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
         #             '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
@@ -170,13 +168,12 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
             # (['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
             #   'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
             #   'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye'])
-            for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_2_70_30',
-                                            'POW_hardsoft_1', 'POW_hardsoft_2']):
+            for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'POW_hardsoft_1', 'POW_hardsoft_2']):
                 with open("config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
                     data["weight_path"] = chkpths[i]
                     print(model_name)
-                    if i > 2:
+                    if i > 1:
                         data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
                                               "REPLACE_tysya", "REPLACE_tsya", "[##]"]
                     else:

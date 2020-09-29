@@ -1,15 +1,20 @@
 {
-  "weight_path": "Chkpt_fl_hardsoft_correct_2set.pth",
-  "train_from_chk": true,
-  "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
-  "from_rubert": false,
-  "seed_val": 42,
-  "adam_options":
+	"weight_path": "",
+	"chckp_file": "Chkpt_fl_hardsoft_correct_2set.pth",
+	"train_from_chk": true,
+
+	"part_of_word": false,
+	"label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
+
+	"seed_val": 42,
+	"adam_options":
 	{
 		"lr": 2e-5,
 		"eps": 1e-8
 	},
-  "config_of_model":
+
+	"from_rubert": true,
+	"config_of_model":
 	{
 		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased",
 		"output_attentions": false,

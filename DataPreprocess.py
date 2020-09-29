@@ -1,12 +1,16 @@
 import os
+
+import random
+
+import json
+
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+
 import h5py
 from tqdm import tqdm
 from transformers import BertTokenizer, AutoTokenizer
 import numpy as np
-import random
-import json
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
 
 
 class DataPreprocess:
@@ -16,6 +20,7 @@ class DataPreprocess:
         self.label_map = {label: i for i, label in enumerate(label_list)}
         self.tokenizer = tokenizer
         self.file = path_to_file
+        # self.data_dir = config['data_dir_with_full_labels_hdf']
 
     def process_batch(self, output_file, data_dir, part_of_word, file_size=1200000):
 
@@ -41,7 +46,7 @@ class DataPreprocess:
                         input_ids, input_mask, label_ids, nopad = self.convert_single_example(sentence=list_of_words,
                                                                                               sentence_labels=list_of_labeles,
                                                                                               part_of_word=part_of_word)
-                        # КОСТЫЛЬ
+                        #КОСТЫЛЬ
                         if i >= file_size-1:
                             print(i, list_of_labeles, input_ids.shape)
                             dset_input_ids.resize((i + 1, 512))
@@ -63,7 +68,11 @@ class DataPreprocess:
 
                 pbar.close()
 
-    def convert_single_example(self, sentence, sentence_labels, max_seq_length=512, part_of_word=False):
+
+
+
+
+    def convert_single_example(self, sentence, sentence_labels, max_seq_length = 512, part_of_word = False):
 
         tokens = []
         labels = []
@@ -120,16 +129,10 @@ class DataPreprocess:
 def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_part=0.6,
                           val_part=0.2, length=10000, random_seed=1, use_both_datasets=True):
 
-    if not data_dir:
-        data_dir = './new_data/'
-
-    if not output_dir:
-        output_dir = './data/'
-
     parts = ["train", "val", "test"]
 
     with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
-        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+       with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
 
             input_data = f['input_ids']
             idxs = list(range(len(input_data)))
@@ -186,27 +189,33 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
                                 counter += 1
 
 
+
 def main():
 
-    with open("config_datapreprocess.json") as json_data_file:
+    with open("config_datapreprocess_universal_dp.json") as json_data_file:
         configs = json.load(json_data_file)
 
     if not configs['from_rubert']:
-        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-    # data_processor = DataPreprocess(path_to_file=configs["path_to_news"], label_list=configs["label_list"],
-    #                                 tokenizer=tokenizer)
-    # data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
-    #                              part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
-    # print("Finished with news")
-    # data_processor = DataPreprocess(path_to_file=configs["path_to_magazines"], label_list=configs["label_list"],
-    #                                 tokenizer=tokenizer)
-    # data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["data_path"],
-    #                              part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
-    # print("processed")
-    to_train_val_test_hdf(data_dir=configs["data_path"], output_dir=configs["data_path_split"],
+    label_list = configs["label_list"]
+    if configs["part_of_word"]:
+        label_list.append("[##]")
+
+    data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news" ],
+                                    label_list=label_list, tokenizer=tokenizer)
+    data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
+                                 part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
+    print("Finished with news")
+
+    data_processor = DataPreprocess(path_to_file=configs["path_magazines"] + configs["file_magazines"],
+                                    label_list=label_list, tokenizer=tokenizer)
+    data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["full_data_path_hdf"],
+                                 part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
+    print("processed")
+    to_train_val_test_hdf(data_dir=configs["full_data_path_hdf"], output_dir=configs["split_data_path_hdf"],
                           train_part=configs["train_part"], val_part=configs["val_part"],
                           length=configs["length_of_data"], random_seed=1,
                           use_both_datasets=configs["use_both_datasets"])
@@ -215,3 +224,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

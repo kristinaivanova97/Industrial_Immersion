@@ -28,6 +28,7 @@ class GetIndices:
         self.input_mask = []
         self.label_ids = []
 
+
     def upload(self):
 
         features = [self.input_ids, self.input_mask, self.label_ids]
@@ -55,21 +56,16 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None,
-                 train_from_chk=False, device=device):
+    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
         self.label_list = label_list
-        self.label_map = {}
-        for (i, label) in enumerate(self.label_list):
-            self.label_map[label] = i
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
         if not from_rubert:
             self.model = BertForTokenClassification.from_pretrained(
-                        'bert-base-multilingual-cased',
-                        num_labels=len(label_list),
-                        output_attentions=False,
-                        output_hidden_states=False,
-                    )
+                **config_of_model,
+                num_labels=len(self.label_list)
+            )
         else:
             self.model = AutoModelWithLMHead.from_pretrained(
                 **config_of_model
@@ -80,10 +76,10 @@ class TsyaModel:
 
         self.tokenizer = tokenizer
         self.optimizer = AdamW(self.model.parameters(),
-                               **adam_options
-                               )
+                          **adam_options
+                         )
         self.model.to(device)
-        self.seed_val = seed_val  # 42
+        self.seed_val = seed_val #42
 
     def format_time(self, elapsed):
 

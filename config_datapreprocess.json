@@ -1,25 +1,32 @@
 {
   "data_type": "fl",
-  "merge_datasets": true,
-  "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
-  "data_path": "./data_fl_correct/",
-  "data_path_split": "./data_fl_split_hardsoft_correct_full/",
-  "path_to_news": "./datasets/news_dataset_hardsoft_correct.txt",
-  "path_to_magazines": "./datasets/dataset_hardsoft_correct.txt",
+
   "part_of_word": false,
-  "max_seq_length": 512,
-  "news_filesize": 472640,
-  "magazines_filesize": 1096091,
-  "train_part": 0.8,
-  "val_part": 0.2,
-  "length_of_data": 1096091,
+  "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
+  "full_data_path_hdf": "./data_fl_correct_dp/",
+
+  "split_data_path_hdf": "./data_fl_split_hardsoft_correct_2set_dp/",
+
   "use_both_datasets": false,
+  "merge_datasets": true,
   "percent_merge_2dsets": 0.7,
-  "universal_txt_dir": "./universal_data_txt/",
-  "data_universal_path": "./universal_data/",
-  "from_bert": true,
+
+  "path_news": "./datasets/",
+  "file_news": "news_dataset_hardsoft_correct.txt",
+  "news_filesize": 472632,
+
+  "path_magazines": "./datasets/",
+  "file_magazines": "dataset_hardsoft_correct.txt",
+  "magazines_filesize": 1096091,
+
+  "max_seq_length": 512,
+  "length_of_data": 140000,
+  "train_part": 0.6,
+  "val_part": 0.2,
+  "universal_txt_dir": "./universal_data_txt_dp/",
+  "data_universal_path": "./universal_data_dp/",
   "seed_val": 42,
-  "from_rubert": false,
+  "from_rubert": true,
   "config_of_tokenizer":
 	{
 		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased",
