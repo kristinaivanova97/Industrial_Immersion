@@ -11,7 +11,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #     error_0 = 0
 #     error_1 = 1
 
-# TODO переделать этот класс.
 
 
 class TestPreprocess:
@@ -87,15 +86,15 @@ class TestPreprocess:
 
 class ProcessOutput:
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, path_to_tsya_vocab, path_to_all_n_nn_words):
 
         # load dictionaries
         self._tokenizer = tokenizer
-        with open('data/tsya_vocab.txt', 'r') as f:
+        with open(path_to_tsya_vocab, 'r') as f:
             pairs = f.read().splitlines()
         self.tisya_existing_words = set([pair.split('\t')[0] for pair in pairs])
         self.tsya_existing_words = set([pair.split('\t')[1] for pair in pairs])
-        with open('data/all_n_nn_words_full_endings.txt', 'r') as f:
+        with open(path_to_all_n_nn_words, 'r') as f:
             self.n_nn_existing_words = set(f.read().splitlines())
 
         self.pattern_n_cased = re.compile(

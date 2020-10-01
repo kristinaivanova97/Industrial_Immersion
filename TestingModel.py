@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from sklearn.metrics import confusion_matrix
 from ForSasha import OrphoNet
 import numpy as np
@@ -65,7 +67,7 @@ def compute_metrics(y_true, y_predict, test_file):
 
 
 def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya,
-         default_value):
+         default_value, test_nn_dir):
 
     acc1, precision1, recall1, f11 = np.nan, np.nan, np.nan, np.nan
     acc2, precision2, recall2, f12 = np.nan, np.nan, np.nan, np.nan
@@ -73,7 +75,7 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
     acc_tsya, precision_tsya, recall_tsya, f1_tsya = np.nan, np.nan, np.nan, np.nan
 
     if nn_testing:
-        for test_file in ["test_nn/Gramota_doubled", "test_nn/Michail_collection_doubled"]:
+        for test_file in [test_nn_dir + "Gramota_doubled", test_nn_dir + "Michail_collection_doubled"]:
             with open(test_file + '.txt', 'r') as file:
                 text = [line.strip() for line in file]
 
@@ -81,17 +83,17 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
                 for sentence in text:
                     sentence, _, _ = sentence.rpartition(',')
                     print_to_file(net, file, sentence, default_value)
-        with open('test_nn/Mozhno_itak_itak_doubled' + '.txt', 'r') as file:
+        with open(test_nn_dir + 'Mozhno_itak_itak_doubled' + '.txt', 'r') as file:
             text = [line.strip() for line in file]
 
-        with open('test_nn/Mozhno_itak_itak_doubled' + suffix + '.txt', 'w') as file:
+        with open(test_nn_dir + 'Mozhno_itak_itak_doubled' + suffix + '.txt', 'w') as file:
             for sentence in text:
                 print_to_file(net, file, sentence, default_value)
 
     if calculate_metrics_nn:
-        test_file1 = "test_nn/Michail_collection_doubled"
+        test_file1 = test_nn_dir + "Michail_collection_doubled"
         signs_true, signs = extract_signs(test_file1, suffix)
-        test_file2 = "test_nn/Gramota_doubled"
+        test_file2 = test_nn_dir + "Gramota_doubled"
         signs_true2, signs2 = extract_signs(test_file2, suffix)
 
         signs_true = signs_true[signs != 2]
@@ -133,8 +135,13 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
                     acc, precision, recall, f1, acc_tsya, precision_tsya, recall_tsya, f1_tsya])
 
 
-def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya,
-         default_value):
+def main(path_file, configs):
+    write_from_terminal = configs["write_from_terminal"]
+    nn_testing = configs["nn_testing"]
+    tsya_testing = configs["tsya_testing"]
+    calculate_metrics_nn = configs["calculate_metrics_nn"]
+    calculate_metrics_tsya = configs["calculate_metrics_tsya"]
+    default_value = ["default_value"]
 
     if path_file:
         with open(path_file, 'r') as f:
@@ -150,12 +157,10 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
 
     else:
         start_time = time.time()
-        suffixes = ['_answered_fl_hardsoft_correct_1set', '_answered_fl_hardsoft_correct_2set',
-                    '_answered_fl_hardsoft_correct_2set_70_30', '_answered_pow_hardsoft_correct_1set',
-                    '_answered_pow_hardsoft_correct_2set', '_answered_DP']
-        chkpths = ['Chkpt_fl_hardsoft_correct_1set.pth', 'Chkpt_fl_hardsoft_correct_2set.pth',
-                   'Chkpt_fl_hardsoft_correct_2set_70_30.pth', 'Chkpt_pow_hardsoft_correct_1set.pth',
-                   'Chkpt_pow_hardsoft_correct_2set.pth', 'Chkpt_fl_hardsoft_correct_universal_magazines_dp.pth']
+        list_of_models = configs["list_of_models"]
+
+        suffixes = ["_answered_" + model for model in list_of_models]
+        chkpths = ["Chkpt" + model + ".pth" for model in list_of_models]
         # suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
         #             '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
         #             '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
@@ -163,8 +168,9 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
         #            'Chkpt_fl_hardsoft_schitanye_1set.pth', 'Chkpt_fl_hardsoft_schitanye_2set.pth',
         #            'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
         #            'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
-
-        with open('comparison_universal_default_incorrect.csv', 'w', newline='') as csvFile:
+        
+        Path(configs[configs["dir_comparison_file"]]).mkdir(parents=True, exist_ok=True)
+        with open(configs["dir_comparison_file"]+configs["comparison_file"], 'w', newline='') as csvFile:
 
             writer = csv.writer(csvFile)
             writer.writerow(["Model", "Mihail_acc", "Mihail_p", "Mihail_r", "Mihail_f1",
@@ -177,8 +183,7 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
             # ['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
             #  'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
             #  'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye']
-            for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_2_70_30',
-                                            'POW_hardsoft_1', 'POW_hardsoft_2', 'DP']):
+            for i, model_name in enumerate(list_of_models):
                 with open("config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
                     data["weight_path"] = chkpths[i]
@@ -201,7 +206,7 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
                     jsonFile.truncate()
                 net = OrphoNet()
                 test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn,
-                     calculate_metrics_tsya, default_value)
+                     calculate_metrics_tsya, default_value, test_nn_dir=configs["./test_nn/"])
                 print('Elapsed time: ', time.time() - start_time)
 
 
@@ -211,5 +216,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file')
     my_args = parser.parse_args()
     path_to_file = my_args.file
-    main(path_to_file, write_from_terminal=False, nn_testing=True, tsya_testing=True, calculate_metrics_nn=True,
-         calculate_metrics_tsya=True, default_value='Incorrect')
+    with open("config_stand.json") as json_data_file:
+        configs = json.load(json_data_file)
+
+    main(path_to_file, configs=configs)

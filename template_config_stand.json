@@ -3,6 +3,11 @@
 	"chckp_file": "Chkpt_fl_hardsoft_correct_2set.pth",
 	"train_from_chk": true,
 
+	"path_to_tsya_vocab": "./data/tsya_vocab.txt",
+	"path_to_all_n_nn_words": "./data/all_n_nn_words_full_endings.txt",
+	"dir_comparison_file": "./",
+	"comparison_file": "comparison_universal_default_incorrect.csv",
+
 	"part_of_word": false,
 	"label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
 
@@ -25,5 +30,16 @@
 		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased",
 		"do_lower_case": false,
 		"output_hidden_states": false
-	}
+	},
+
+	"write_from_terminal": false,
+	"nn_testing": true,
+	"tsya_testing": true,
+	"calculate_metrics_nn": true,
+	"calculate_metrics_tsya": true,
+	"default_value": "Incorrect",
+
+	"list_of_models": ["fl_hardsoft_correct_1set", "fl_hardsoft_correct_2set",
+                    "fl_hardsoft_correct_2set_70_30", "pow_hardsoft_correct_1set",
+                    "pow_hardsoft_correct_2set", "fl_hardsoft_correct_universal_magazines_dp"]
 }
