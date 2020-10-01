@@ -1,5 +1,5 @@
 import shutil
-from ForSasha import OrphoNet
+from Class_for_execution import OrphoNet
 import os
 from tqdm import tqdm
 import numpy as np

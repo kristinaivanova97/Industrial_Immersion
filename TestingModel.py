@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from sklearn.metrics import confusion_matrix
-from ForSasha import OrphoNet
+from Class_for_execution import OrphoNet
 import numpy as np
 import pandas as pd
 import argparse
