@@ -113,7 +113,7 @@ def main(get_wiki=True, get_csv_fl_hardsoft_1=False):
         for i, chkpth in enumerate(chkpths):
             with open("config_stand.json", "r+") as jsonFile:
                 data = json.load(jsonFile)
-                data["weight_path"] = chkpth
+                data["chckp_file"] = chkpth
                 jsonFile.seek(0)
                 json.dump(data, jsonFile)
                 jsonFile.truncate()

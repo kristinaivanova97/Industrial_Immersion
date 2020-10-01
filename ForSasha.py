@@ -19,10 +19,11 @@ class OrphoNet:
         self.output = ProcessOutput(tokenizer=tokenizer, path_to_tsya_vocab=configs["path_to_tsya_vocab"],
                                     path_to_all_n_nn_words=configs["path_to_all_n_nn_words"])
         self.data_processor = TestPreprocess(tokenizer=tokenizer)
-        self.model = TsyaModel(weight_path=configs['weight_path'] + configs['chckp_file'], train_from_chk=configs['train_from_chk'],
+        self.model = TsyaModel(weight_path=configs['weight_path'] + configs['chckp_file'],
+                               train_from_chk=configs['train_from_chk'],
                                label_list=configs['label_list'], seed_val=configs["seed_val"],
-                               from_rubert=configs['from_rubert'], adam_options=configs["adam_options"], tokenizer=tokenizer,
-                               config_of_model=configs["config_of_model"])
+                               from_rubert=configs['from_rubert'], adam_options=configs["adam_options"],
+                               tokenizer=tokenizer, config_of_model=configs["config_of_model"])
 
     def execute(self, sentences):
         data_with_tsya_or_nn = self.data_processor.check_contain_tsya_or_nn([sentences])
