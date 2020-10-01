@@ -235,32 +235,45 @@ class ProcessOutput:
                     word_hold_prob = max(tok_hold_probs)
                     incorrect_words.append(word)
                     if tok_error_type == 'ться -> тся':
-                        word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-                        correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place,
-                                                                tok_error_type, word_correct,
-                                                                correction_dict, correct_text, word_error_prob,
-                                                                word_hold_prob, default_value)
+                        if word in self.tisya_existing_words:
+                            word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
+                            correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place,
+                                                                    tok_error_type, word_correct,
+                                                                    correction_dict, correct_text, word_error_prob,
+                                                                    word_hold_prob, default_value)
+                        else:
+                            correction_dict.pop(tok_place)
                     elif tok_error_type == 'тся -> ться':
-                        word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-                        correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place,
-                                                                tok_error_type, word_correct,
-                                                                correction_dict, correct_text, word_error_prob,
-                                                                word_hold_prob, default_value)
+                        if word in self.tsya_existing_words:
+                            word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
+                            correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place,
+                                                                    tok_error_type, word_correct,
+                                                                    correction_dict, correct_text, word_error_prob,
+                                                                    word_hold_prob, default_value)
+                        else:
+                            correction_dict.pop(tok_place)
 
                     elif tok_error_type == 'н -> нн':
-                        word_correct = self.pattern_n_cased.sub('НН', word)
-                        word_correct = self.pattern_n.sub('нн', word_correct)
-                        correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
-                                                                tok_error_type, word_correct,
-                                                                correction_dict, correct_text, word_error_prob,
-                                                                word_hold_prob, default_value)
+                        if word in self.n_nn_existing_words:
+                            word_correct = self.pattern_n_cased.sub('НН', word)
+                            word_correct = self.pattern_n.sub('нн', word_correct)
+                            correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
+                                                                    tok_error_type, word_correct,
+                                                                    correction_dict, correct_text, word_error_prob,
+                                                                    word_hold_prob, default_value)
+                        else:
+                            correction_dict.pop(tok_place)
+
                     elif tok_error_type == 'нн -> н':
-                        word_correct = self.pattern_nn_cased.sub('Н', word)
-                        word_correct = self.pattern_nn.sub('н', word_correct)
-                        correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
-                                                                tok_error_type, word_correct,
-                                                                correction_dict, correct_text, word_error_prob,
-                                                                word_hold_prob, default_value)
+                        if word in self.n_nn_existing_words:
+                            word_correct = self.pattern_nn_cased.sub('Н', word)
+                            word_correct = self.pattern_nn.sub('н', word_correct)
+                            correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
+                                                                    tok_error_type, word_correct,
+                                                                    correction_dict, correct_text, word_error_prob,
+                                                                    word_hold_prob, default_value)
+                        else:
+                            correction_dict.pop(tok_place)
         return correct_text, correction_dict, words_error, words_probs
 
     def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,

@@ -41,7 +41,8 @@ def main():
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                       config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
     model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
-                chkp_path=configs["weight_path"], epochs=configs["epochs"], batch_size=configs["batch_size"])
+                chkp_path=configs["weight_path"], epochs=configs["epochs"], batch_size=configs["batch_size"],
+                do_validation=True)
 
 
 if __name__ == "__main__":

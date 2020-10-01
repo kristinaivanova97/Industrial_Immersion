@@ -1,8 +1,8 @@
 {
-  "weight_path": "Chkpts/Chkpt_fl_hardsoft_correct_1set_full.pth",
-  "train_from_chk": false,
+  "weight_path": "Chkpts/Chkpt_fl_hardsoft_correct_2set_retrained.pth",
+  "train_from_chk": true,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
-  "data_path": "./data_fl_split_hardsoft_correct_full/",
+  "data_path": "./universal_data/fl_2sets/",
   "max_seq_length": 512,
   "epochs": 3,
   "batch_size": 6,

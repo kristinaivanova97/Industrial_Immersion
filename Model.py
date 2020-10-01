@@ -1,21 +1,18 @@
-import json
 import time
 import datetime
 import random
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-
 import h5py
 from tqdm import tqdm
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForTokenClassification, AutoModelWithLMHead, AutoTokenizer
+from transformers import BertForTokenClassification, AutoModelWithLMHead
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from scipy.special import softmax
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 print("Device: {}".format(device))
 
 
@@ -55,7 +52,7 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None,
+    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model=None, weight_path=None,
                  train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
@@ -87,9 +84,7 @@ class TsyaModel:
 
     def format_time(self, elapsed):
 
-        '''
-        Takes a time in seconds and returns a string hh:mm:ss
-        '''
+        # Takes a time in seconds and returns a string hh:mm:ss
         elapsed_rounded = int(round(elapsed))
         return str(datetime.timedelta(seconds=elapsed_rounded))
 
@@ -115,8 +110,7 @@ class TsyaModel:
 
         return train_dataloader, validation_dataloader
 
-
-    def train(self, chkp_path, train_data_processor, val_data_processor, epochs, batch_size):
+    def train(self, chkp_path, train_data_processor, val_data_processor, epochs, batch_size, do_validation=False):
         # if not chkp_path:
         #     chkp_path = self.weight_path
 
@@ -199,66 +193,69 @@ class TsyaModel:
             # ========================================
             #               Validation
             # ========================================
+            if do_validation:
+                print("")
+                print("Running Validation...")
 
-            print("")
-            print("Running Validation...")
+                t0 = time.time()
 
-            t0 = time.time()
+                self.model.eval()
 
-            self.model.eval()
+                total_eval_accuracy = 0
+                total_eval_loss = 0
+                b_input_ids = np.nan
+                label_ids = np.nan
+                logits = np.nan
 
-            total_eval_accuracy = 0
-            total_eval_loss = 0
+                # Evaluate data for one epoch
+                for batch in validation_dataloader:
+                    b_input_ids = batch[0].to(device)
+                    b_input_mask = batch[1].to(device)
+                    b_labels = batch[2].to(device)
 
-            # Evaluate data for one epoch
-            for batch in validation_dataloader:
-                b_input_ids = batch[0].to(device)
-                b_input_mask = batch[1].to(device)
-                b_labels = batch[2].to(device)
+                    # Tell pytorch not to bother with constructing the compute graph during
+                    # the forward pass, since this is only needed for backprop (training).
+                    with torch.no_grad():
+                        (loss, logits) = self.model(b_input_ids,
+                                                    token_type_ids=None,  # b_segment,
+                                                    attention_mask=b_input_mask,
+                                                    labels=b_labels.to(dtype=torch.long))
 
-                # Tell pytorch not to bother with constructing the compute graph during
-                # the forward pass, since this is only needed for backprop (training).
-                with torch.no_grad():
-                    (loss, logits) = self.model(b_input_ids,
-                                                token_type_ids=None,  # b_segment,
-                                                attention_mask=b_input_mask,
-                                                labels=b_labels.to(dtype=torch.long))
+                    total_eval_loss += loss.item()
+                    logits = logits.detach().cpu().numpy()
+                    label_ids = b_labels.to('cpu').numpy()
 
-                total_eval_loss += loss.item()
-                logits = logits.detach().cpu().numpy()
-                label_ids = b_labels.to('cpu').numpy()
+                    total_eval_accuracy += self.flat_accuracy(logits, label_ids)
+                print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
+                last = np.argmax(logits, axis=2)
+                part = last[0, :]
+                part_true = label_ids[0, :]
+                print("Last true = ", part_true)
+                print("Last prediction", part)
 
-                total_eval_accuracy += self.flat_accuracy(logits, label_ids)
-            print(self.tokenizer.convert_ids_to_tokens(b_input_ids[0, :]))
-            last = np.argmax(logits, axis=2)
-            part = last[0, :]
-            part_true = label_ids[0, :]
-            print("Last true = ", part_true)
-            print("Last prediction", part)
+                avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
+                print("  Accuracy: {0:.3f}".format(avg_val_accuracy))
 
-            avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
-            print("  Accuracy: {0:.3f}".format(avg_val_accuracy))
+                # Calculate the average loss over all of the batches.
+                avg_val_loss = total_eval_loss / len(validation_dataloader)
 
-            # Calculate the average loss over all of the batches.
-            avg_val_loss = total_eval_loss / len(validation_dataloader)
+                # Measure how long the validation run took.
+                validation_time = self.format_time(time.time() - t0)
 
-            # Measure how long the validation run took.
-            validation_time = self.format_time(time.time() - t0)
+                print("  Validation Loss: {0:.3f}".format(avg_val_loss))
+                print("  Validation took: {:}".format(validation_time))
 
-            print("  Validation Loss: {0:.3f}".format(avg_val_loss))
-            print("  Validation took: {:}".format(validation_time))
-
-            # Record all statistics from this epoch.
-            training_stats.append(
-                {
-                    'epoch': epoch_i + 1,
-                    'Training Loss': avg_train_loss,
-                    'Valid. Loss': avg_val_loss,
-                    'Valid. Accur.': avg_val_accuracy,
-                    'Training Time': training_time,
-                    'Validation Time': validation_time
-                }
-            )
+                # Record all statistics from this epoch.
+                training_stats.append(
+                    {
+                        'epoch': epoch_i + 1,
+                        'Training Loss': avg_train_loss,
+                        'Valid. Loss': avg_val_loss,
+                        'Valid. Accur.': avg_val_accuracy,
+                        'Training Time': training_time,
+                        'Validation Time': validation_time
+                    }
+                )
             print("  Average training loss: {0:.3f}".format(avg_train_loss))
             print("  Training epoch took: {:}".format(training_time))
             torch.save(self.model.state_dict(), chkp_path)
@@ -271,6 +268,8 @@ class TsyaModel:
         predicts_full = []
         probability = []
         step = 0
+        probs_o = np.nan
+        probs = np.nan
         for batch in prediction_dataloader:
             batch = tuple(t.to(device) for t in batch)
             b_input_ids, b_input_mask = batch
@@ -281,17 +280,17 @@ class TsyaModel:
             logits = output[0].detach().cpu().numpy()
             # norm = np.linalg.norm(logits, axis=2)
             prediction = np.argmax(logits, axis=2)
-            O_index = self.label_list.index('O')
+            o_index = self.label_list.index('O')
             predicts = []
             for i in range(len(b_input_ids)):
 
-                #probs = np.divide(np.argmax(logits, axis=2)[i][:nopad[step]], norm[i][:nopad[step]])
+                # probs = np.divide(np.argmax(logits, axis=2)[i][:nopad[step]], norm[i][:nopad[step]])
                 soft = softmax(logits, axis=2)
                 probs = np.amax(soft, axis=2)[i][:nopad[step]]
-                probs_O = [soft[i][l][O_index] for l in range(nopad[step])]
+                probs_o = [soft[i][el][o_index] for el in range(nopad[step])]
                 predicts.append(prediction[i, :nopad[step]])
                 step += 1
             probability.append(probs)
             predicts_full.append(predicts)
 
-        return predicts_full, probs, probs_O
+        return predicts_full, probs, probs_o

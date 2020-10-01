@@ -1,5 +1,5 @@
 {
-  "weight_path": "Chkpt_fl_hardsoft_correct_2set.pth",
+  "weight_path": "Chkpt_fl_hardsoft_correct_2set_retrained.pth",
   "train_from_chk": true,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
   "from_rubert": false,
@@ -11,9 +11,7 @@
 	},
   "config_of_model":
 	{
-		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased",
-		"output_attentions": false,
-		"output_hidden_states": false
+		"pretrained_model_name_or_path": "DeepPavlov/rubert-base-cased"
 	},
 	"config_of_tokenizer":
 	{

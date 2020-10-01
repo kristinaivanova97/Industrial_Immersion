@@ -147,11 +147,11 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
     else:
         start_time = time.time()
         suffixes = ['_answered_fl_hardsoft_correct_1set', '_answered_fl_hardsoft_correct_2set',
-                    '_answered_fl_hardsoft_correct_2set_70_30',
-                    '_answered_pow_hardsoft_correct_1set', '_answered_pow_hardsoft_correct_2set']
+                    '_answered_fl_hardsoft_correct_2set_70_30', '_answered_pow_hardsoft_correct_1set',
+                    '_answered_pow_hardsoft_correct_2set', '_answered_DP']
         chkpths = ['Chkpt_fl_hardsoft_correct_1set.pth', 'Chkpt_fl_hardsoft_correct_2set.pth',
-                   'Chkpt_fl_hardsoft_correct_2set_70_30.pth',
-                   'Chkpt_pow_hardsoft_correct_1set.pth', 'Chkpt_pow_hardsoft_correct_2set.pth']
+                   'Chkpt_fl_hardsoft_correct_2set_70_30.pth', 'Chkpt_pow_hardsoft_correct_1set.pth',
+                   'Chkpt_pow_hardsoft_correct_2set.pth', 'Chkpt_fl_hardsoft_correct_universal_magazines_dp.pth']
         # suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
         #             '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
         #             '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
@@ -167,21 +167,31 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
                              "Gramota_acc", "Gramota_p", "Gramota_r", "Gramota_f1",
                              "Full_acc", "Full_p", "Full_r", "Full_f1",
                              "Tsya_acc", "Tsya_p", "Tsya_r", "Tsya_f1"])
-            # (['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
-            #   'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
-            #   'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye'])
+
+            # ['FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_2_70_30',
+            #  'POW_hardsoft_1', 'POW_hardsoft_2']
+            # ['FL_hard_1', 'FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_1_schitanye',
+            #  'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
+            #  'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye']
             for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'FL_hardsoft_2_70_30',
-                                            'POW_hardsoft_1', 'POW_hardsoft_2']):
+                                            'POW_hardsoft_1', 'POW_hardsoft_2', 'DP']):
                 with open("config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
                     data["weight_path"] = chkpths[i]
                     print(model_name)
-                    if i > 2:
-                        data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
-                                              "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+                    if i != 5:
+                        data["from_rubert"] = False
+                        if i > 2:
+                            data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                                                  "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+                        else:
+                            data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                                                  "REPLACE_tysya", "REPLACE_tsya"]
                     else:
+                        data["from_rubert"] = True
                         data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
                                               "REPLACE_tysya", "REPLACE_tsya"]
+
                     jsonFile.seek(0)  # rewind
                     json.dump(data, jsonFile)
                     jsonFile.truncate()

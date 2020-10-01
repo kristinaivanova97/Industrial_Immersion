@@ -129,7 +129,7 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
     parts = ["train", "val", "test"]
 
     with h5py.File(os.path.join(data_dir, "ids_all.hdf5"), 'r') as f:
-        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+        #with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
 
             input_data = f['input_ids']
             idxs = list(range(len(input_data)))

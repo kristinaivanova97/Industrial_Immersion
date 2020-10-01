@@ -1,6 +1,6 @@
 {
   "data_type": "fl",
-  "merge_datasets": true,
+  "merge_datasets": false,
   "label_list": ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n", "REPLACE_tysya", "REPLACE_tsya"],
   "data_path": "./data_fl_correct/",
   "data_path_split": "./data_fl_split_hardsoft_correct_full/",
@@ -17,7 +17,6 @@
   "percent_merge_2dsets": 0.7,
   "universal_txt_dir": "./universal_data_txt/",
   "data_universal_path": "./universal_data/",
-  "from_bert": true,
   "seed_val": 42,
   "from_rubert": false,
   "config_of_tokenizer":
