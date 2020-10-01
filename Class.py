@@ -1,22 +1,28 @@
 import json
+
+import os
 import re
-from enum import Enum
-import numpy as np
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoModelWithLMHead, AutoTokenizer
-import torch
-from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
+import random
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
+from enum import Enum
+
+import h5py
+import numpy as np
+from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoModelWithLMHead, AutoTokenizer
+from tqdm import tqdm
+import torch
+from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class Errors(int, Enum):
-    error_0 = 0
-    error_1 = 1
+# class Errors(int, Enum):
+#     error_0 = 0
+#     error_1 = 1
 
-
+#TODO переделать этот класс.
 class TestPreprocess:
     def __init__(self, tokenizer):
 
