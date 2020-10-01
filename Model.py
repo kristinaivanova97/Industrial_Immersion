@@ -1,18 +1,16 @@
-import json
 import time
 import datetime
 import random
 import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-
 import h5py
 from tqdm import tqdm
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForTokenClassification, AutoModelWithLMHead, AutoTokenizer
+from transformers import BertForTokenClassification, AutoModelWithLMHead
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from scipy.special import softmax
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device: {}".format(device))
@@ -21,7 +19,8 @@ print("Device: {}".format(device))
 class GetIndices:
 
     def __init__(self, ftype, data_dir):
-        self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
+        self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt',
+                           data_dir + 'label_ids_' + ftype + '.txt']
         self.file_hdf = data_dir + ftype
         self.input_ids = []
         self.input_mask = []
@@ -54,7 +53,8 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None, train_from_chk=False, device=device):
+    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model, weight_path=None,
+                 train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
         self.label_list = label_list
@@ -74,10 +74,10 @@ class TsyaModel:
 
         self.tokenizer = tokenizer
         self.optimizer = AdamW(self.model.parameters(),
-                          **adam_options
-                         )
+                               **adam_options
+                               )
         self.model.to(device)
-        self.seed_val = seed_val #42
+        self.seed_val = seed_val  # 42
 
     def format_time(self, elapsed):
 

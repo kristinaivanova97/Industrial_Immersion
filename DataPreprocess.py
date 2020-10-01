@@ -3,14 +3,12 @@ import random
 import json
 from pathlib import Path
 
-
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-
 import h5py
 from tqdm import tqdm
 from transformers import BertTokenizer, AutoTokenizer
 import numpy as np
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 
 class DataPreprocess:
@@ -199,12 +197,11 @@ def main():
         label_list.append("[##]")
 
     Path(configs[configs["full_data_path_hdf"]]).mkdir(parents=True, exist_ok=True)
-    data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news" ],
+    data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news"],
                                     label_list=label_list, tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["full_data_path_hdf"],
                                  part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
     print("Finished with news")
-
 
     Path(configs[configs["full_data_path_hdf"]]).mkdir(parents=True, exist_ok=True)
     data_processor = DataPreprocess(path_to_file=configs["path_magazines"] + configs["file_magazines"],

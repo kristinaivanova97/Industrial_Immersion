@@ -1,28 +1,19 @@
-import json
-
-import os
 import re
-import random
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-from enum import Enum
-
-import h5py
 import numpy as np
-from transformers import BertTokenizer, BertForTokenClassification, BertConfig, AutoModelWithLMHead, AutoTokenizer
-from tqdm import tqdm
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
-
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 # class Errors(int, Enum):
 #     error_0 = 0
 #     error_1 = 1
 
-#TODO переделать этот класс.
+# TODO переделать этот класс.
+
+
 class TestPreprocess:
     def __init__(self, tokenizer):
 
@@ -428,8 +419,6 @@ class ProcessOutput:
                 probs = []
                 probs_o = []
                 tokens = self._tokenizer.convert_ids_to_tokens(input_ids[step, :nopad[step]])
-                # text = self._tokenizer.decode(input_ids[step, :nopad[step]])
-                # self.fine_text = self.text.replace('[CLS] ', '').replace(' [SEP]', '')
                 initial_text = text_data[step]
                 preds = np.array(pred)
                 correct_text = initial_text

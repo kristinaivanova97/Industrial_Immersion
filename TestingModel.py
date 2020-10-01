@@ -59,11 +59,13 @@ def compute_metrics(y_true, y_predict, test_file):
     precision = tn / (tn + fn)
     recall = tn / (tn + fp)
     f1 = 2 * precision * recall / (precision + recall)
-    print(test_file + " Precision = {}, Recall = {}, F1 = {}".format(round(precision, 4), round(recall, 4), round(f1, 4)))
+    print(test_file + " Precision = {}, Recall = {}, F1 = {}".format(round(precision, 4), round(recall, 4),
+                                                                     round(f1, 4)))
     return acc, precision, recall, f1
 
 
-def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value):
+def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya,
+         default_value):
 
     acc1, precision1, recall1, f11 = np.nan, np.nan, np.nan, np.nan
     acc2, precision2, recall2, f12 = np.nan, np.nan, np.nan, np.nan
@@ -99,7 +101,8 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
 
         acc1, precision1, recall1, f11 = compute_metrics(signs_true, signs, "Michail")
         acc2, precision2, recall2, f12 = compute_metrics(signs_true2, signs2, "Gramota")
-        _, precision, recall, f1 = compute_metrics(np.concatenate((signs_true, signs_true2), axis=None), np.concatenate((signs, signs2), axis=None), "Full")
+        _, precision, recall, f1 = compute_metrics(np.concatenate((signs_true, signs_true2), axis=None),
+                                                   np.concatenate((signs, signs2), axis=None), "Full")
         acc = (acc1 + acc2) / 2
         print("Full n/nn accuracy = {}".format(round(acc * 100, 2)))
         print("Michail acc = {}".format(round(acc1 * 100, 3)))
@@ -130,7 +133,8 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
                     acc, precision, recall, f1, acc_tsya, precision_tsya, recall_tsya, f1_tsya])
 
 
-def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya, default_value):
+def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_metrics_nn, calculate_metrics_tsya,
+         default_value):
 
     if path_file:
         with open(path_file, 'r') as f:
@@ -207,6 +211,5 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file')
     my_args = parser.parse_args()
     path_to_file = my_args.file
-    #TODO default value!!!
     main(path_to_file, write_from_terminal=False, nn_testing=True, tsya_testing=True, calculate_metrics_nn=True,
          calculate_metrics_tsya=True, default_value='Incorrect')
