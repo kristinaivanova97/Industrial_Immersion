@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import torch
 from transformers import BertTokenizer, AutoTokenizer
@@ -46,6 +47,8 @@ def main():
     model = TsyaModel(label_list=label_list, weight_path=None, train_from_chk=configs["train_from_chk"],
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                       config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
+
+    Path(configs[configs["weight_path"]]).mkdir(parents=True, exist_ok=True)
     model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
                 chkp_path=configs["weight_path"]+configs["chckp_file"], epochs=configs["epochs"],
                 batch_size=configs["batch_size"])

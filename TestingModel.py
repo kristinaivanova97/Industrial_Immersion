@@ -169,7 +169,7 @@ def main(path_file, write_from_terminal, nn_testing, tsya_testing, calculate_met
             #   'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
             #   'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye'])
             for i, model_name in enumerate(['FL_hardsoft_1', 'FL_hardsoft_2', 'POW_hardsoft_1', 'POW_hardsoft_2']):
-                with open("config_stand.json", "r+") as jsonFile:
+                with open("template_config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
                     data["weight_path"] = chkpths[i]
                     print(model_name)

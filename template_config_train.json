@@ -3,7 +3,7 @@
   "epochs": 3,
   "batch_size": 6,
 
-  "weight_path": "",
+  "weight_path": "./",
   "chckp_file": "Chkpt_fl_hardsoft_correct_2set.pth",
 
   "train_from_chk": false,

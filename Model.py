@@ -23,7 +23,7 @@ class GetIndices:
 
     def __init__(self, ftype, data_dir):
         self.file_names = [data_dir + 'input_ids_' + ftype + '.txt', data_dir + 'input_mask_' + ftype + '.txt', data_dir + 'label_ids_' + ftype + '.txt']
-        self.file_hdf = data_dir + ftype + '.hdf5'
+        self.file_hdf = data_dir + ftype
         self.input_ids = []
         self.input_mask = []
         self.label_ids = []

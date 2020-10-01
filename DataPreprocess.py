@@ -1,8 +1,8 @@
 import os
-
 import random
-
 import json
+from pathlib import Path
+
 
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -204,17 +204,22 @@ def main():
     if configs["part_of_word"]:
         label_list.append("[##]")
 
+    Path(configs[configs["full_data_path_hdf"]]).mkdir(parents=True, exist_ok=True)
     data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news" ],
                                     label_list=label_list, tokenizer=tokenizer)
-    data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["data_path"],
+    data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["full_data_path_hdf"],
                                  part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
     print("Finished with news")
 
+
+    Path(configs[configs["full_data_path_hdf"]]).mkdir(parents=True, exist_ok=True)
     data_processor = DataPreprocess(path_to_file=configs["path_magazines"] + configs["file_magazines"],
                                     label_list=label_list, tokenizer=tokenizer)
     data_processor.process_batch(output_file='ids_all.hdf5', data_dir=configs["full_data_path_hdf"],
                                  part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
     print("processed")
+
+    Path(configs[configs["split_data_path_hdf"]]).mkdir(parents=True, exist_ok=True)
     to_train_val_test_hdf(data_dir=configs["full_data_path_hdf"], output_dir=configs["split_data_path_hdf"],
                           train_part=configs["train_part"], val_part=configs["val_part"],
                           length=configs["length_of_data"], random_seed=1,

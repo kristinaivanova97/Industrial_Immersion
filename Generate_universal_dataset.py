@@ -81,7 +81,7 @@ def create_small_dset(file, num_of_sentences, len_of_train=84000, len_of_val=280
 
 def main(cut_from_dataset=False, make_pleminary_indices=False):
 
-    with open("config_datapreprocess.json", "r+") as jsonFile:
+    with open("template_config_datapreprocess.json", "r+") as jsonFile:
         configs = json.load(jsonFile)
     if not configs['from_rubert']:
         tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
