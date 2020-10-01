@@ -5,8 +5,11 @@ This is a project for detection and correction some general mistakes in Russian 
 For now it could with greate accuracy correct tsya/tisya and with reasonable accuracy - n/nn misspellings.
 
 The base of our model is BertForTokenClassification from Transformers library https://huggingface.co/transformers/master/model_doc/bert.html. 
+
 Tutorial for evaluating BERT tokenization and the model http://mccormickml.com/2019/07/22/BERT-fine-tuning/. 
+
 Thanks to https://github.com/yuanxiaosc/BERT-for-Sequence-Labeling-and-Text-Classification/blob/master/run_sequence_labeling.py open project for some ideas for perfoming appropriate tagging.
+
 Model was compared with similar one from deep-pavlov library, but the last have not showed any improvements in all the metrics.
 
 For now this model is implemented in https://orfo.ashmanov.org for testing. 
