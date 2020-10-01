@@ -23,6 +23,7 @@ For launching scripts you will need to put appropriate paths&values to configura
 They are named templates_*.json here.
 
 To test our model from cmd type: python TestingModel.py -f <file_name.txt> 
+
 or change in template_config_stand.json parameter "write_from_terminal" to true value and launch with python TestingModel.py then type num of sentences and afterwards - your sentences.
 
 There is an ability to retrain model on extra sets.
