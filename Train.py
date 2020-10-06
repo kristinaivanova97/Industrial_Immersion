@@ -1,9 +1,5 @@
 import json
-from pathlib import Path
-
-import torch
 from transformers import BertTokenizer, AutoTokenizer
-
 from Model import GetIndices, TsyaModel
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -11,7 +7,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 
 def main():
 
-    with open("config_train_universal_dp.json") as json_data_file:
+    with open("config_train.json") as json_data_file:
         configs = json.load(json_data_file)
 
     train_data_processor = GetIndices(ftype=configs["train_file"], data_dir=configs["data_path"])
@@ -35,7 +31,7 @@ def main():
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
     if not configs['from_rubert']:
-        tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
@@ -48,7 +44,7 @@ def main():
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                       config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
 
-    Path(configs[configs["weight_path"]]).mkdir(parents=True, exist_ok=True)
+    # Path(configs[configs["weight_path"]]).mkdir(parents=True, exist_ok=True)
     model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
                 chkp_path=configs["weight_path"]+configs["chckp_file"], epochs=configs["epochs"],
                 batch_size=configs["batch_size"], do_validation=True)

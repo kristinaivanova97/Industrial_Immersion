@@ -160,7 +160,7 @@ def main(path_file, configs):
         list_of_models = configs["list_of_models"]
 
         suffixes = ["_answered_" + model for model in list_of_models]
-        chkpths = ["Chkpt" + model + ".pth" for model in list_of_models]
+        chkpths = ["Chkpt_" + model + ".pth" for model in list_of_models]
         # suffixes = ['_answered2', '_answered_fl_hs_1set', '_answered_fl_hs_2set', '_answered_fl_hs_schit_1set',
         #             '_answered_fl_hs_schit_2set', '_answered', '_answered_full_endings_1set',
         #             '_answered_full_endings_2set', '_answered_more_nn_sent_1set', '_answered_full_end_more_nn_2set']
@@ -169,7 +169,7 @@ def main(path_file, configs):
         #            'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
         #            'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
         
-        Path(configs[configs["dir_comparison_file"]]).mkdir(parents=True, exist_ok=True)
+        # Path(configs[configs["dir_comparison_file"]]).mkdir(parents=True, exist_ok=True)
         with open(configs["dir_comparison_file"]+configs["comparison_file"], 'w', newline='') as csvFile:
 
             writer = csv.writer(csvFile)
@@ -186,11 +186,11 @@ def main(path_file, configs):
             for i, model_name in enumerate(list_of_models):
                 with open("config_stand.json", "r+") as jsonFile:
                     data = json.load(jsonFile)
-                    data["weight_path"] = chkpths[i]
+                    data["chckp_file"] = chkpths[i]
                     print(model_name)
                     if i != 5:
                         data["from_rubert"] = False
-                        if i > 2:
+                        if i > 3:
                             data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
                                                   "REPLACE_tysya", "REPLACE_tsya", "[##]"]
                         else:
@@ -206,7 +206,7 @@ def main(path_file, configs):
                     jsonFile.truncate()
                 net = OrphoNet()
                 test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn,
-                     calculate_metrics_tsya, default_value, test_nn_dir=configs["./test_nn/"])
+                     calculate_metrics_tsya, default_value, test_nn_dir="./test_nn/")
                 print('Elapsed time: ', time.time() - start_time)
 
 

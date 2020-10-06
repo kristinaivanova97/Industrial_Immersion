@@ -11,7 +11,7 @@ class OrphoNet:
             configs = json.load(json_data_file)
 
         if not configs['from_rubert']:
-            tokenizer = BertTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+            tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
         else:
             tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
@@ -66,7 +66,7 @@ class OrphoNet:
                         default_value, threshold=0.5)
             return message, incorrect_words, correct_text, error, probs, probs_O
 
-# text_data = 'мощёная каменными плитами дорога'
+text_data = 'мощёная каменными плитами дорога'
 # text_data = "Если находится внутри задачи, то написать что-то в форму обратной связи становится невозможно."
 # text_data = "Можно собрать эти сведения вручную, автоматизировано или используя оба способа."
 # text_data = "Длинна рамки, используемой для поиска компактных вхождений"
@@ -74,8 +74,12 @@ class OrphoNet:
 # text_data = "Остались считанные минуты"
 # text_data = "Решен только вопрос о том, что он получил документ, что его заявление по предоставлению убежища получен\
 # ФМС и будет рассмотрен в установленом законом порядке."
+
+
 # model = OrphoNet()
-# text_data = "Бонне, Шарлотта\n"
+# # text_data = "Бонне, Шарлотта\n"
+# # text_data = "Все знатоки фольклора пришли к единому мнению, что к детскому фольклору относятся и произведения детей,\
+# #  и произведения, написанные для детей взрослыми."
 # output = model.execute(text_data)
 # # model.give_json(output[2], 'model_output.json')
 # for out in output:

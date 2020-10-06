@@ -195,7 +195,6 @@ class ProcessOutput:
         correct_text = text_data[0]
         preds = np.array(prediction[0][0])
         replace_tsya, replace_tisya, replace_n, replace_nn = self.get_replace_lists(preds)
-
         words = []
         words_error = []
         words_probs = []

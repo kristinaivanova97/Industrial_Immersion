@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 
 def write_multiple_sentences(data, multiplier_code1=5, multiplier_code2=2, multiplier_code3=5):
-    with open("dataset_for_retrain.txt", 'w') as f:
+    with open("dataset_for_retrain_5252.txt", 'w') as f:
         for _, sentence in data.iterrows():
             if sentence.code == '!=':
                 for _ in range(multiplier_code1+1):
@@ -33,12 +33,13 @@ def write_multiple_sentences(data, multiplier_code1=5, multiplier_code2=2, multi
 
         with open("all_dliNa_sent.txt", 'r') as f_dlin:
             dlin_sentences = f_dlin.read().splitlines()
-            for line in dlin_sentences:
-                f.write(line.strip())
-                f.write("\n")
+            for _ in range(multiplier_code2+1):
+                for line in dlin_sentences:
+                    f.write(line.strip())
+                    f.write("\n")
 
 
-def create_test_file_conll(file="dataset_for_retrain.txt"):
+def create_test_file_conll(file="dataset_for_retrain_5252.txt"):
 
     tokens = []
     labels = []
@@ -64,14 +65,14 @@ def create_test_file_conll(file="dataset_for_retrain.txt"):
             f.write('\n')
 
 
-def main(create_file=False, test_indices=False, retrain=True):
+def main(create_file=False, test_indices=False, retrain=True, suffix=None):
     if create_file:
         parsed_sents = pd.read_csv("ruwiki_2018_09_25_answered_with_code.csv", index_col=0)
         print(parsed_sents.head())
         write_multiple_sentences(parsed_sents)
     if test_indices:
-
-        # create_test_file_conll()
+        suffix = "_5252."
+        create_test_file_conll()
         with open("config_train.json") as json_data_file:
             configs = json.load(json_data_file)
 
@@ -81,14 +82,15 @@ def main(create_file=False, test_indices=False, retrain=True):
         else:
             tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-        data_processor = DataPreprocess(path_to_file="conlldataset_for_retrain.txt", label_list=configs["label_list"],
+        data_processor = DataPreprocess(path_to_file="conlldataset_for_retrain" + suffix + "txt",
+                                        label_list=configs["label_list"],
                                         tokenizer=tokenizer)
-        data_processor.process_batch(output_file='ids_test_fl.hdf5', data_dir=configs["data_path"],
-                                     part_of_word=False, file_size=5966)
+        data_processor.process_batch(output_file='ids_test_fl' + suffix + 'hdf5', data_dir="",
+                                     part_of_word=False, file_size=17117)
         to_train_val_test_hdf(data_dir="./", output_dir="./",
-                              train_part=0.8, val_part=0.2,
-                              length=5966, random_seed=1,
-                              use_both_datasets=False)
+                              train_part=1.0, val_part=0.0,
+                              length=17118, random_seed=1,
+                              use_both_datasets=False, filename='ids_test_fl' + suffix + 'hdf5')
 
     if retrain:
 
@@ -111,7 +113,7 @@ def main(create_file=False, test_indices=False, retrain=True):
                           seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                           config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
         model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
-                    chkp_path="Chkpts/Chkpt_fl_hardsoft_correct_2set_retrained.pth", epochs=configs["epochs"],
+                    chkp_path="Chkpts/Chkpt_fl_hardsoft_correct_2set_retrained"+suffix+"pth", epochs=configs["epochs"],
                     batch_size=configs["batch_size"])
 
 
