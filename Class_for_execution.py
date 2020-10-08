@@ -25,7 +25,7 @@ class OrphoNet:
                                from_rubert=configs['from_rubert'], adam_options=configs["adam_options"],
                                tokenizer=tokenizer, config_of_model=configs["config_of_model"])
 
-    def execute(self, sentences):
+    def execute(self, sentences, default_value='Correct'):
         data_with_tsya_or_nn = self.data_processor.check_contain_tsya_or_nn([sentences])
         if len(data_with_tsya_or_nn) == 0:
             message = ["Correct"]
@@ -37,12 +37,13 @@ class OrphoNet:
             # message, _, correct_text, _, _, _, correction_dict = self.output.process_sentence(
             #             predicts, input_ids, nopad, data_with_tsya_or_nn, probabilities, probabilities_o,
             #             default_value='Correct', threshold=0.5)
-            correct_text, correction_dict, words_errors, words_probs = self.output.process_sentence_optimal(
+            correct_text, correction_dict, words_errors, words_probs, words_hold_probs = \
+                self.output.process_sentence_optimal(
                         predicts, input_ids, nopad, data_with_tsya_or_nn, probabilities, probabilities_o,
-                        default_value='Correct', threshold=0.5)
+                        default_value, threshold=0.5, for_stand=False)
             if len(correction_dict.keys()) > 0:
                 message = "Incorrect"
-                return [message, correct_text, correction_dict, words_errors, words_probs]
+                return [message, correct_text, correction_dict, words_errors, words_probs, words_hold_probs]
             else:
                 message = "Correct"
                 return [message]
@@ -66,7 +67,7 @@ class OrphoNet:
                         default_value, threshold=0.5)
             return message, incorrect_words, correct_text, error, probs, probs_O
 
-text_data = 'мощёная каменными плитами дорога'
+# text_data = 'мощёная каменными плитами дорога'
 # text_data = "Если находится внутри задачи, то написать что-то в форму обратной связи становится невозможно."
 # text_data = "Можно собрать эти сведения вручную, автоматизировано или используя оба способа."
 # text_data = "Длинна рамки, используемой для поиска компактных вхождений"
@@ -80,7 +81,7 @@ text_data = 'мощёная каменными плитами дорога'
 # # text_data = "Бонне, Шарлотта\n"
 # # text_data = "Все знатоки фольклора пришли к единому мнению, что к детскому фольклору относятся и произведения детей,\
 # #  и произведения, написанные для детей взрослыми."
-# output = model.execute(text_data)
+# output = model.execute(text_data, 'Incorrect')
 # # model.give_json(output[2], 'model_output.json')
 # for out in output:
 #     print(out)

@@ -121,7 +121,8 @@ class DataPreprocess:
 
 
 def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_part=0.6,
-                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True, filename="ids_all.hdf5"):
+                          val_part=0.2, length=10000, random_seed=1, use_both_datasets=True, filename="ids_all.hdf5",
+                          suffix=''):
 
     parts = ["train", "val", "test"]
 
@@ -147,7 +148,7 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
             for params in zip(parts, (0,) + points[:-1], points):
 
                 part, start, end = params
-                with h5py.File(os.path.join(output_dir, f"{part}.hdf5"), 'w') as file:
+                with h5py.File(os.path.join(output_dir, f"{part}" + suffix + ".hdf5"), 'w') as file:
 
                     for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
                         counter = 0

@@ -13,38 +13,42 @@ from tqdm import tqdm
 # parsed_sents.to_csv("ruwiki_2018_09_25_answered_with_code.csv", index_label=0)
 
 
-def write_multiple_sentences(data, multiplier_code1=5, multiplier_code2=2, multiplier_code3=5):
-    with open("dataset_for_retrain_5252.txt", 'w') as f:
+def write_multiple_sentences(data, multiplier_code1=2, multiplier_code2=2, multiplier_code3=2, suffix=None):
+    with open("dataset_for_retrain"+suffix+"txt", 'w') as f:
         for _, sentence in data.iterrows():
             if sentence.code == '!=':
-                for _ in range(multiplier_code1+1):
+                for _ in range(multiplier_code1):
                     f.write(sentence.proc_sentence)
                     f.write("\n")
             elif sentence.code == 2:
-                for _ in range(multiplier_code2+1):
+                for _ in range(multiplier_code2):
                     f.write(sentence.proc_sentence)
                     f.write("\n")
                     f.write(sentence.corrected)
                     f.write("\n")
-            elif sentence.code == 1 and re.search('длин', sentence):
-                for _ in range(multiplier_code3+1):
+            elif sentence.code == 1:
+                if re.search('длин', sentence) is not None:
+                    for _ in range(multiplier_code3):
+                        f.write(sentence.proc_sentence)
+                        f.write("\n")
+                else:
                     f.write(sentence.proc_sentence)
                     f.write("\n")
 
         with open("all_dliNa_sent.txt", 'r') as f_dlin:
             dlin_sentences = f_dlin.read().splitlines()
-            for _ in range(multiplier_code2+1):
+            for _ in range(multiplier_code2):
                 for line in dlin_sentences:
                     f.write(line.strip())
                     f.write("\n")
 
 
-def create_test_file_conll(file="dataset_for_retrain_5252.txt"):
+def create_test_file_conll(suffix):
 
     tokens = []
     labels = []
     tokenizer = BasicTokenizer(do_lower_case=False)
-    with open(file, 'r') as f:
+    with open("dataset_for_retrain"+suffix+"txt", 'r') as f:
         sentences = f.read().splitlines()
     sentences = [line.strip() for line in sentences]
 
@@ -55,7 +59,7 @@ def create_test_file_conll(file="dataset_for_retrain_5252.txt"):
         tokens.append(sent_tokens)
         labels.append(sent_labels)
 
-    with open("conll" + file, 'w') as f:
+    with open("conll" + "dataset_for_retrain"+suffix+"txt", 'w') as f:
         zipped = list(zip(tokens, labels))
         for i in range(len(zipped)):
             sentence_tokens = zipped[i][0]
@@ -65,14 +69,13 @@ def create_test_file_conll(file="dataset_for_retrain_5252.txt"):
             f.write('\n')
 
 
-def main(create_file=False, test_indices=False, retrain=True, suffix=None):
+def main(create_file=False, test_indices=False, retrain=True, suffix="_2222_with_mistakes."):
     if create_file:
         parsed_sents = pd.read_csv("ruwiki_2018_09_25_answered_with_code.csv", index_col=0)
         print(parsed_sents.head())
-        write_multiple_sentences(parsed_sents)
+        write_multiple_sentences(parsed_sents, suffix=suffix)
     if test_indices:
-        suffix = "_5252."
-        create_test_file_conll()
+        # create_test_file_conll(suffix)
         with open("config_train.json") as json_data_file:
             configs = json.load(json_data_file)
 
@@ -82,15 +85,16 @@ def main(create_file=False, test_indices=False, retrain=True, suffix=None):
         else:
             tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-        data_processor = DataPreprocess(path_to_file="conlldataset_for_retrain" + suffix + "txt",
+        data_processor = DataPreprocess(path_to_file="datasets/"+"dataset_for_retrain" + suffix + "txt",
                                         label_list=configs["label_list"],
                                         tokenizer=tokenizer)
         data_processor.process_batch(output_file='ids_test_fl' + suffix + 'hdf5', data_dir="",
-                                     part_of_word=False, file_size=17117)
+                                     part_of_word=False, file_size=8188)
         to_train_val_test_hdf(data_dir="./", output_dir="./",
                               train_part=1.0, val_part=0.0,
-                              length=17118, random_seed=1,
-                              use_both_datasets=False, filename='ids_test_fl' + suffix + 'hdf5')
+                              length=8188, random_seed=1,
+                              use_both_datasets=False, filename='ids_test_fl' + suffix + 'hdf5',
+                              suffix=suffix)
 
     if retrain:
 
@@ -103,9 +107,9 @@ def main(create_file=False, test_indices=False, retrain=True, suffix=None):
         else:
             tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-        train_data_processor = GetIndices(ftype=configs["train_file"], data_dir="./")
+        train_data_processor = GetIndices(ftype=configs["train_file"], data_dir="")
         train_data_processor.upload_hdf()
-        val_data_processor = GetIndices(ftype=configs["val_file"], data_dir="./")
+        val_data_processor = GetIndices(ftype=configs["val_file"], data_dir="")
         val_data_processor.upload_hdf()
 
         model = TsyaModel(label_list=configs["label_list"], weight_path=configs["weight_path"]+configs["chckp_file"],

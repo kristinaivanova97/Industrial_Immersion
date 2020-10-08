@@ -92,7 +92,7 @@ def get_answers_in_wiki(model):
     #     if len(answer) > 1 and answer[0] == 'Incorrect':
     #         wikipedia['corrected'].iloc[i] = answer[1]
     wikipedia.dropna(subset=['article_uuid', 'proc_sentence', 'corrected'], how='any', inplace=True)
-    wikipedia.to_csv("ruwiki_2018_09_25" + '_answered_fl_2_retrained_5252' + '.csv')
+    wikipedia.to_csv("ruwiki_2018_09_25" + '_answered_fl_2_retrained_2222_with_mistakes' + '.csv', index=False)
 
 
 def main(get_wiki=True, get_csv_fl_hardsoft_1=False):

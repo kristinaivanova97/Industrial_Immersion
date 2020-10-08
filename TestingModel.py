@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from sklearn.metrics import confusion_matrix
 from Class_for_execution import OrphoNet
 import numpy as np
@@ -34,9 +33,9 @@ def extract_signs(test_file, suffix):
 
 def print_to_file(net, file, sentence, default_value):
 
-    answer = net.execute_old(sentence, default_value)
+    answer = net.execute(sentence, default_value)
     if len(answer) > 1:
-        correct_sentence = answer[2]
+        correct_sentence = answer[1]
         message = answer[0]
         if len(answer[3]) > 0:
             mistake = answer[3]
@@ -116,10 +115,15 @@ def test(writer, model_name, net, suffix, nn_testing, tsya_testing, calculate_me
         data['new_model_correct'] = np.nan
         for i in range(len(data)):
             sentence = data['text'].iloc[i]
-            answer = net.execute_old(sentence, default_value)
-            correct_sentence = answer[2]
-            data['new_model_v2'].iloc[i] = '+' if answer[0] == 'Correct' else '-'
-            data['new_model_correct'].iloc[i] = correct_sentence
+            answer = net.execute(sentence, default_value)
+            if len(answer) > 1:
+                correct_sentence = answer[1]
+                data['new_model_v2'].iloc[i] = '-'
+                data['new_model_correct'].iloc[i] = correct_sentence
+            else:
+                data['new_model_v2'].iloc[i] = '+'
+                data['new_model_correct'].iloc[i] = sentence
+
         data.to_csv('./test_linguists/' + 'test_linguists' + suffix + '.csv')
 
     if calculate_metrics_tsya:
@@ -188,7 +192,7 @@ def main(path_file, configs):
                     data = json.load(jsonFile)
                     data["chckp_file"] = chkpths[i]
                     print(model_name)
-                    if i != 5:
+                    if i != 6:
                         data["from_rubert"] = False
                         if i > 3:
                             data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",

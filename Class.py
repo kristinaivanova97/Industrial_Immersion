@@ -2,6 +2,7 @@ import re
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
+import csv
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -189,7 +190,7 @@ class ProcessOutput:
         return replace_tsya, replace_tisya, replace_n, replace_nn
 
     def process_sentence_optimal(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
-                                 default_value, threshold=0.5):
+                                 default_value, threshold=0.5, for_stand=False):
 
         tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
         correct_text = text_data[0]
@@ -198,6 +199,7 @@ class ProcessOutput:
         words = []
         words_error = []
         words_probs = []
+        words_hold_probs = []
         incorrect_words = []
         correction_dict = {}
         for tok_place, token in enumerate(tokens):
@@ -228,48 +230,70 @@ class ProcessOutput:
                     word_error_prob = max(tok_replace_probs)
                     words_probs.append(word_error_prob)
                     word_hold_prob = max(tok_hold_probs)
+                    words_hold_probs.append(word_hold_prob)
                     incorrect_words.append(word)
-                    if tok_error_type == 'ться -> тся':
-                        if word in self.tisya_existing_words:
-                            word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
-                            correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place,
-                                                                    tok_error_type, word_correct,
-                                                                    correction_dict, correct_text, word_error_prob,
-                                                                    word_hold_prob, default_value)
-                        else:
-                            correction_dict.pop(tok_place)
-                    elif tok_error_type == 'тся -> ться':
-                        if word in self.tsya_existing_words:
-                            word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
-                            correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place,
-                                                                    tok_error_type, word_correct,
-                                                                    correction_dict, correct_text, word_error_prob,
-                                                                    word_hold_prob, default_value)
-                        else:
-                            correction_dict.pop(tok_place)
+                    with open("words_not_in_dict.csv", 'w', newline='') as csvFile:
 
-                    elif tok_error_type == 'н -> нн':
-                        if word in self.n_nn_existing_words:
+                        writer = csv.writer(csvFile)
+                        writer.writerow(["word", "sentence", "error", "probability"])
+                        if tok_error_type == 'ться -> тся':
+                            word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
+                            if word in self.tisya_existing_words:
+                                correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place,
+                                                                        tok_error_type, word_correct,
+                                                                        correction_dict, correct_text, word_error_prob,
+                                                                        word_hold_prob, default_value)
+                            else:
+                                writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
+                                if for_stand:
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                else:
+                                    correction_dict.pop(tok_place)
+                        elif tok_error_type == 'тся -> ться':
+                            word_correct = word.replace('ТСЯ', 'ТЬСЯ').replace('тся', 'ться')
+                            if word in self.tsya_existing_words:
+                                correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place,
+                                                                        tok_error_type, word_correct,
+                                                                        correction_dict, correct_text, word_error_prob,
+                                                                        word_hold_prob, default_value)
+                            else:
+                                writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
+                                if for_stand:
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                else:
+                                    correction_dict.pop(tok_place)
+
+                        elif tok_error_type == 'н -> нн':
                             word_correct = self.pattern_n_cased.sub('НН', word)
                             word_correct = self.pattern_n.sub('нн', word_correct)
-                            correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
-                                                                    tok_error_type, word_correct,
-                                                                    correction_dict, correct_text, word_error_prob,
-                                                                    word_hold_prob, default_value)
-                        else:
-                            correction_dict.pop(tok_place)
+                            if word in self.n_nn_existing_words:
 
-                    elif tok_error_type == 'нн -> н':
-                        if word in self.n_nn_existing_words:
+                                correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
+                                                                        tok_error_type, word_correct,
+                                                                        correction_dict, correct_text, word_error_prob,
+                                                                        word_hold_prob, default_value)
+                            else:
+                                writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
+                                if for_stand:
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                else:
+                                    correction_dict.pop(tok_place)
+
+                        elif tok_error_type == 'нн -> н':
                             word_correct = self.pattern_nn_cased.sub('Н', word)
                             word_correct = self.pattern_nn.sub('н', word_correct)
-                            correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
-                                                                    tok_error_type, word_correct,
-                                                                    correction_dict, correct_text, word_error_prob,
-                                                                    word_hold_prob, default_value)
-                        else:
-                            correction_dict.pop(tok_place)
-        return correct_text, correction_dict, words_error, words_probs
+                            if word in self.n_nn_existing_words:
+                                correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
+                                                                        tok_error_type, word_correct,
+                                                                        correction_dict, correct_text, word_error_prob,
+                                                                        word_hold_prob, default_value)
+                            else:
+                                writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
+                                if for_stand:
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                else:
+                                    correction_dict.pop(tok_place)
+        return correct_text, correction_dict, words_error, words_probs, words_hold_probs
 
     def process_sentence(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
                          default_value, threshold=0.5):
