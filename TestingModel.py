@@ -173,7 +173,7 @@ def main(path_file, configs):
         #            'Chkpt_part_of_word.pth', 'Chkpt_pow_new_endings_1set.pth', 'Chkpt_pow_new_endings_2set.pth',
         #            'Chkpt_pow_new_endings_1set_test.pth', "Chkpt_pow_new_endings_2set_test.pth"]
         
-        # Path(configs[configs["dir_comparison_file"]]).mkdir(parents=True, exist_ok=True)
+        Path(configs["dir_comparison_file"]).mkdir(parents=True, exist_ok=True)
         with open(configs["dir_comparison_file"]+configs["comparison_file"], 'w', newline='') as csvFile:
 
             writer = csv.writer(csvFile)

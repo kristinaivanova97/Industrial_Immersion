@@ -1,5 +1,9 @@
 import json
+from datetime import datetime
+from pathlib import Path
+
 from transformers import BertTokenizer, AutoTokenizer
+
 from Model import GetIndices, TsyaModel
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -44,9 +48,17 @@ def main():
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                       config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
 
-    # Path(configs[configs["weight_path"]]).mkdir(parents=True, exist_ok=True)
+    Path(configs["weight_path"]).mkdir(parents=True, exist_ok=True)
+    number_of_chkp = 0
+    path_to_file_chkp = configs["weight_path"] + configs["chckp_file"] + datetime.date(datetime.now()) \
+                        + "_" + str(number_of_chkp)
+    while Path(path_to_file_chkp + ".pth").is_file():
+        number_of_chkp+=1
+        path_to_file_chkp = configs["weight_path"] + configs["chckp_file"] + datetime.date(datetime.now()) \
+                            + "_" + str(number_of_chkp)
+
     model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
-                chkp_path=configs["weight_path"]+configs["chckp_file"], epochs=configs["epochs"],
+                chkp_path=path_to_file_chkp + ".pth", epochs=configs["epochs"],
                 batch_size=configs["batch_size"], do_validation=True)
 
 
