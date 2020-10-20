@@ -4,14 +4,15 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 import csv
 import warnings
+
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 # class Errors(int, Enum):
 #     error_0 = 0
 #     error_1 = 1
-
 
 
 class TestPreprocess:
@@ -34,7 +35,7 @@ class TestPreprocess:
             ntokens = ["[CLS]"]
             for k, token in enumerate(tokens[1:]):
                 ntokens.append(token)
-                    
+
             ntokens.append("[SEP]")
             nopad.append(len(ntokens))
             input_ids = self.tokenizer.convert_tokens_to_ids(ntokens)
@@ -48,7 +49,7 @@ class TestPreprocess:
             assert len(input_mask) == max_seq_length
             input_ids_full.append(input_ids)
             attention_masks.append(input_mask)
-            
+
         input_ids = torch.tensor(input_ids_full)
         attention_masks = torch.tensor(attention_masks)
         prediction_data = TensorDataset(input_ids, attention_masks)
@@ -155,14 +156,18 @@ class ProcessOutput:
         return tok_error_type
 
     def check_in_dictionary(self, existing_words, word, place, tok_error_type, word_correct, dicty, correct_text,
-                            error_prob, hold_prob, default_value):
+                            error_prob, hold_prob, default_value, writer, text_data):
         if word_correct.lower() in existing_words:
             correct_text = correct_text.replace(word, word_correct)
             dicty[place] = [word + "->" + word_correct, str(error_prob), tok_error_type,
                             len(word_correct.encode("utf8"))]
         elif default_value == 'Incorrect':
-            dicty[place] = [word, str(1 - hold_prob), "Ошибка, но исправление невозможно", len(word.encode("utf8"))]
+            # dicty[place] = [word, str(1 - hold_prob), "Ошибка, но исправление невозможно", len(word.encode("utf8"))]
+            writer.writerow([word, text_data[0], tok_error_type, error_prob])
+            dicty[place] = [word, str(1 - hold_prob), "Nothing to do", tok_error_type]
+
         elif default_value == 'Correct':
+            writer.writerow([word, text_data[0], tok_error_type, error_prob])
             dicty.pop(place)
         return correct_text
 
@@ -242,11 +247,12 @@ class ProcessOutput:
                                 correct_text = self.check_in_dictionary(self.tsya_existing_words, word, tok_place,
                                                                         tok_error_type, word_correct,
                                                                         correction_dict, correct_text, word_error_prob,
-                                                                        word_hold_prob, default_value)
+                                                                        word_hold_prob, default_value,
+                                                                        writer, text_data)
                             else:
                                 writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
                                 if for_stand:
-                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to do"]
                                 else:
                                     correction_dict.pop(tok_place)
                         elif tok_error_type == 'тся -> ться':
@@ -255,11 +261,12 @@ class ProcessOutput:
                                 correct_text = self.check_in_dictionary(self.tisya_existing_words, word, tok_place,
                                                                         tok_error_type, word_correct,
                                                                         correction_dict, correct_text, word_error_prob,
-                                                                        word_hold_prob, default_value)
+                                                                        word_hold_prob, default_value,
+                                                                        writer, text_data)
                             else:
                                 writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
                                 if for_stand:
-                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to do"]
                                 else:
                                     correction_dict.pop(tok_place)
 
@@ -270,12 +277,13 @@ class ProcessOutput:
 
                                 correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
                                                                         tok_error_type, word_correct,
-                                                                        correction_dict, correct_text, word_error_prob,
-                                                                        word_hold_prob, default_value)
+                                                                        correction_dict, correct_text,
+                                                                        word_error_prob, word_hold_prob,
+                                                                        default_value, writer, text_data)
                             else:
                                 writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
                                 if for_stand:
-                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to do"]
                                 else:
                                     correction_dict.pop(tok_place)
 
@@ -286,11 +294,12 @@ class ProcessOutput:
                                 correct_text = self.check_in_dictionary(self.n_nn_existing_words, word, tok_place,
                                                                         tok_error_type, word_correct,
                                                                         correction_dict, correct_text, word_error_prob,
-                                                                        word_hold_prob, default_value)
+                                                                        word_hold_prob, default_value, writer,
+                                                                        text_data)
                             else:
                                 writer.writerow([word, text_data[0], tok_error_type, word_error_prob])
                                 if for_stand:
-                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to correct"]
+                                    correction_dict[tok_place] = [word, tok_error_type, "Nothing to do"]
                                 else:
                                     correction_dict.pop(tok_place)
         return correct_text, correction_dict, words_error, words_probs, words_hold_probs
@@ -345,15 +354,15 @@ class ProcessOutput:
                         current = probabilities[replace_list[ids]]
                         current_o = probabilities_o[replace_list[ids]]
                         if '##' in word:
-                            while '##' in tokens[replace_list[ids]-k]:
-                                word = tokens[replace_list[ids]-k]+word[2:]
-                                if (replace_list[ids]-k) in replace_list:
-                                    if current < probabilities[replace_list[ids]-k]:
-                                        current = probabilities[replace_list[ids]-k]
+                            while '##' in tokens[replace_list[ids] - k]:
+                                word = tokens[replace_list[ids] - k] + word[2:]
+                                if (replace_list[ids] - k) in replace_list:
+                                    if current < probabilities[replace_list[ids] - k]:
+                                        current = probabilities[replace_list[ids] - k]
                                     if current_o < probabilities_o[replace_list[ids] - k]:
                                         current_o = probabilities_o[replace_list[ids] - k]
                                 k += 1
-                            word = tokens[replace_list[ids]-k] + word[2:]
+                            word = tokens[replace_list[ids] - k] + word[2:]
                         k = 1
                         if replace_list[ids] + k < len(tokens):
                             if '##' in tokens[replace_list[ids] + k]:
@@ -361,7 +370,7 @@ class ProcessOutput:
                                 while '##' in tokens[replace_list[ids] + k]:
                                     word += tokens[replace_list[ids] + k][2:]
                                     # if (replace_list[ids]+k) in replace_list and '#' in tokens[replace_list[ids] + k]:
-                                    if (replace_list[ids]+k) in replace_list:
+                                    if (replace_list[ids] + k) in replace_list:
                                         check_contain = True
                                     k += 1
 
@@ -469,13 +478,13 @@ class ProcessOutput:
                             word = tokens[replace_list[ids]]
                             k = 1
                             if '##' in word:
-                                while '##' in tokens[replace_list[ids]-k]:
-                                    word = tokens[replace_list[ids]-k]+word[2:]
+                                while '##' in tokens[replace_list[ids] - k]:
+                                    word = tokens[replace_list[ids] - k] + word[2:]
                                     k += 1
-                                word = tokens[replace_list[ids]-k] + word[2:]
+                                word = tokens[replace_list[ids] - k] + word[2:]
                             k = 1
-                            if replace_list[ids]+k < len(tokens):
-                                while '##' in tokens[replace_list[ids]+k]:
+                            if replace_list[ids] + k < len(tokens):
+                                while '##' in tokens[replace_list[ids] + k]:
                                     index = replace_list[ids] + k
                                     word += tokens[index][2:]
                                     k += 1
@@ -493,11 +502,18 @@ class ProcessOutput:
                     word_correct = word.replace('ТЬСЯ', 'ТСЯ').replace('ться', 'тся')
                     correct_text = correct_text.replace(word, word_correct)
 
-                pattern_n_cased = re.compile(r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
-                                             re.IGNORECASE)
-                pattern_nn_cased = re.compile(r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
-                pattern_nn = re.compile(r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
-                pattern_n = re.compile(r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)', re.IGNORECASE)
+                pattern_n_cased = re.compile(
+                    r'(?<=[аоэеиыуёюя])(?-i:Н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+                    re.IGNORECASE)
+                pattern_nn_cased = re.compile(
+                    r'(?-i:НН)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+                    re.IGNORECASE)
+                pattern_nn = re.compile(
+                    r'(?-i:нн)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+                    re.IGNORECASE)
+                pattern_n = re.compile(
+                    r'(?<=[аоэеиыуёюя])(?-i:н)(?=([аоыяеи]|ый|ого|ому|ом|ым|ая|ой|ую|ые|ыми|ых|ое|ою|ий|его|ему|ем|им|яя|ей|ею|юю|ие|ими|их|ее)\b)',
+                    re.IGNORECASE)
                 for word in incorrect_words_n:
                     error.append("нн -> н")
                     word_correct = pattern_nn_cased.sub('Н', word)
@@ -520,4 +536,3 @@ class ProcessOutput:
                 step += 1
 
         return all_messages, incorrect_words_from_sentences, correct_text_full, all_errors, probs, probs_o
-
