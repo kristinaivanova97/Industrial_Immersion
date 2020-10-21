@@ -61,7 +61,7 @@ class TsyaModel:
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
         if not from_rubert:
             self.model = BertForTokenClassification.from_pretrained(
-                                                    'bert-base-multilingual-cased',
+                                                    'bert-base-cased',
                                                     num_labels=len(self.label_list),
                                                     output_attentions=False,
                                                     output_hidden_states=False
