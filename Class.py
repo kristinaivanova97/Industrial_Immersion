@@ -11,11 +11,6 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-# class Errors(int, Enum):
-#     error_0 = 0
-#     error_1 = 1
-
-
 class TestPreprocess:
     def __init__(self, tokenizer):
 
@@ -867,6 +862,241 @@ class ProcessOutput:
                         elif tok_error_type == "unnec -> not nec":
                             correction_dict = self.replace_multiple(['UNNECESSARY'], "not necessary", word,
                                                                     correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["were -> was", "was -> were"]:
+                            inserted_ids = ["were -> was", "was -> were"].index(tok_error_type)
+                            inserted_l = ["was", "were"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["are -> is", "is -> are"]:
+                            inserted_ids = ["are -> is", "is -> are"].index(tok_error_type)
+                            inserted_l = ["is", "are"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["have -> has", "has -> have"]:
+                            inserted_ids = ["have -> has", "has -> have"].index(tok_error_type)
+                            inserted_l = ["has", "have"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["do -> does", "does -> do"]:
+                            inserted_ids = ["do -> does", "does -> do"].index(tok_error_type)
+                            inserted_l = ["does", "do"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["litter -> liter", "litters -> liters"]:
+                            s_search = re.compile(r"\w+s\b", re.IGNORECASE)
+                            if s_search.search(word) is not None:
+                                mistaken = ['LITTERS', "liters"]
+                            else:
+                                mistaken = ['LITTER', "liter"]
+                                correction_dict = self.replace_multiple([mistaken[0]], mistaken[1], word,
+                                                                        correction_dict, tok_place, word_error_prob,
+                                                                        correct_text, tok_error_type)
+                        elif tok_error_type == "universe -> universal":
+                            correction_dict = self.replace_multiple(['UNIVERSE'], "universal", word,
+                                                                    correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type == "helpful -> helping":
+                            correction_dict = self.replace_multiple(['HELPFUL'], "helping", word,
+                                                                    correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["interesting -> interested", "interested -> interesting"]:
+                            inserted_ids = ["interesting -> interested", "interested -> interesting"].\
+                                index(tok_error_type)
+                            inserted_l = ["interested", "interesting"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["creating -> creation", "creation -> creating"]:
+                            inserted_ids = ["creating -> creation", "creation -> creating"].index(tok_error_type)
+                            inserted_l = ["creation", "creating"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["existence -> existant", "existant -> existence"]:
+                            inserted_ids = ["existence -> existant", "existant -> existence"].index(tok_error_type)
+                            inserted_l = ["existant", "existence"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type == "nearby -> near":
+                            correction_dict = self.replace_multiple(['NEARBY'], "near", word,
+                                                                    correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["weigh -> weight", "weight -> weigh"]:
+                            s_search = re.compile(r"\w+s\b", re.IGNORECASE)
+                            inserted_ids = ["weighs -> weight", "weights -> weigh"].index(tok_error_type)
+                            if s_search.search(word) is not None:
+                                inserted_l = ["weights", "weighs"]
+                            else:
+                                inserted_l = ["weight", "weigh"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["separate -> divide", "divide -> separate"]:
+                            ed_search = re.compile(r"\w+ed\b", re.IGNORECASE)
+                            ing_search = re.compile(r"\w+ing\b", re.IGNORECASE)
+                            inserted_ids = ["separate -> divide", "divide -> separate"].index(tok_error_type)
+                            if ed_search.search(word) is not None:
+                                inserted_l = ["divided", "separated"]
+                            elif ing_search.search(word) is not None:
+                                inserted_l = ["dividing", "separating"]
+                            else:
+                                inserted_l = ["divide", "separate"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place,
+                                                                    word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["cross-cult -> intercult", "intercult -> cross-cult"]:
+                            cross_search = re.compile(r"\bcross-\w+", re.IGNORECASE)
+                            inter_search = re.compile(r"\binter\w+", re.IGNORECASE)
+                            if cross_search.search(word) is not None:
+                                word_correct = cross_search.sub("inter", word)
+                            else:
+                                word_correct = inter_search.sub("cross-", word)
+                            correct_text = correct_text.replace(word, word_correct)
+                            correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
+                                                          tok_error_type, len(word_correct.encode("utf8"))]
+                        elif tok_error_type == "education -> medication":
+                            correction_dict = self.replace_multiple(['EDUCATION'], "medication", word,
+                                                                    correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["large -> big", "big -> large"]:
+                            inserted_ids = ["large -> big", "big -> large"].index(tok_error_type)
+                            inserted_l = ["big", "large"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["small -> little","little -> small"]:
+                            inserted_ids = ["small -> little","little -> small"].index(tok_error_type)
+                            inserted_l = ["little", "small"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["ofoff -> of", "ofoff -> off"]:
+                            inserted_ids = ["ofoff -> of", "ofoff -> off"].index(tok_error_type)
+                            inserted_l = ["of", "off"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["outour -> out", "outour -> our"]:
+                            inserted_ids = ["outour -> out", "outour -> our"].index(tok_error_type)
+                            inserted_l = ["out", "our"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["in demand -> requested", "requested -> in demand"]:
+                            inserted_ids = ["in demand -> requested", "requested -> in demand"].index(tok_error_type)
+                            inserted_l = ["requested", "in demand"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["product -> production", "production -> product"]:
+                            s_search = re.compile(r"\w+s\b", re.IGNORECASE)
+                            inserted_ids = ["product -> production", "production -> product"].index(tok_error_type)
+                            if s_search.search(word) is not None:
+                                inserted_l = ["productions", "products"]
+                            else:
+                                inserted_l = ["production", "product"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                                                                    tok_place, word_error_prob, correct_text,
+                                                                    tok_error_type)
+                        elif tok_error_type in ["ed -> addict", "ed -> addicted"]:
+                            inserted_ids = ["ed -> addict", "ed -> addicted"].index(tok_error_type)
+                            inserted_l = ["addict", "addicted"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["cial -> benefit", "cial -> beneficial"]:
+                            inserted_ids = ["cial -> benefit", "cial -> beneficial"].index(tok_error_type)
+                            inserted_l = ["benefit", "beneficial"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["ent -> depend", "ent -> dependent"]:
+                            inserted_ids = ["ent -> depend", "ent -> dependent"].index(tok_error_type)
+                            inserted_l = ["depend", "dependent"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type == "dependent_on -> addicted_to":
+                            correction_dict = self.replace_multiple(['DEPENDENT ON'], "addicted to", word,
+                                                                    correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type)
+                        elif tok_error_type in ["sayings -> say", "sayings -> tell", "sayings -> talk"]:
+                            d_search = re.compile(r"\w+d\b", re.IGNORECASE)
+                            ing_search = re.compile(r"\w+ing\b", re.IGNORECASE)
+                            inserted_ids = ["sayings -> say", "sayings -> tell", "sayings -> talk"].index(tok_error_type)
+                            if d_search.search(word) is not None:
+                                inserted_l = "said", "told", "talked"
+                            elif ing_search.search(word) is not None:
+                                inserted_l = ["saying", "telling", "talking"]
+                            else:
+                                inserted_l = ["say", "tell", "talk"]
+                            inserted_char = inserted_l[inserted_ids]
+                            inserted_l.pop(inserted_ids)
+                            inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict = self.replace_multiple(inserted_l, inserted_char,
+                                                                    word, correction_dict, tok_place,
+                                                                    word_error_prob,
                                                                     correct_text, tok_error_type)
 
         return correct_text, correction_dict, words_error, words_probs, words_hold_probs
