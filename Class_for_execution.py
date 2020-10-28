@@ -9,6 +9,8 @@ class OrphoNet:
     def __init__(self):
         with open("config_stand.json") as json_data_file:
             configs = json.load(json_data_file)
+        with open("test.json") as json_data_file:
+            tags = json.load(json_data_file)
 
         if not configs['from_rubert']:
             tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
@@ -16,37 +18,29 @@ class OrphoNet:
         else:
             tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 
-        self.output = ProcessOutput(tokenizer=tokenizer, path_to_tsya_vocab=configs["path_to_tsya_vocab"],
-                                    path_to_all_n_nn_words=configs["path_to_all_n_nn_words"])
+        self.output = ProcessOutput(tokenizer=tokenizer)
         self.data_processor = TestPreprocess(tokenizer=tokenizer)
         self.model = TsyaModel(weight_path=configs['weight_path'] + configs['chckp_file'],
                                train_from_chk=configs['train_from_chk'],
-                               label_list=configs['label_list'], seed_val=configs["seed_val"],
+                               label_list=tags['label_list'], seed_val=configs["seed_val"],
                                from_rubert=configs['from_rubert'], adam_options=configs["adam_options"],
                                tokenizer=tokenizer, config_of_model=configs["config_of_model"])
 
     def execute(self, sentences, default_value='Correct'):
-        data_with_tsya_or_nn = self.data_processor.check_contain_tsya_or_nn([sentences])
-        if len(data_with_tsya_or_nn) == 0:
-            message = ["Correct"]
-            return message
-        else:
-            input_ids, mask_ids, prediction_dataloader, nopad = self.data_processor.process(text=data_with_tsya_or_nn)
 
-            predicts, probabilities, probabilities_o = self.model.predict_batch(prediction_dataloader, nopad)
-            # message, _, correct_text, _, _, _, correction_dict = self.output.process_sentence(
-            #             predicts, input_ids, nopad, data_with_tsya_or_nn, probabilities, probabilities_o,
-            #             default_value='Correct', threshold=0.5)
-            correct_text, correction_dict, words_errors, words_probs, words_hold_probs = \
-                self.output.process_sentence_optimal(
-                        predicts, input_ids, nopad, data_with_tsya_or_nn, probabilities, probabilities_o,
-                        default_value, threshold=0.5, for_stand=False)
-            if len(correction_dict.keys()) > 0:
-                message = "Incorrect"
-                return [message, correct_text, correction_dict, words_errors, words_probs, words_hold_probs]
-            else:
-                message = "Correct"
-                return [message]
+        input_ids, mask_ids, prediction_dataloader, nopad = self.data_processor.process(text=[sentences])
+
+        predicts, probabilities, probabilities_o = self.model.predict_batch(prediction_dataloader, nopad)
+        correct_text, correction_dict, words_errors, incorrect_words, corrected_words = \
+            self.output.process_sentence_optimal(
+                    predicts, input_ids, nopad, [sentences], probabilities, probabilities_o,
+                    default_value, threshold=0.5, for_stand=False)
+        if len(correction_dict.keys()) > 0:
+            message = "Incorrect"
+            return [message, correct_text, correction_dict, words_errors, incorrect_words, corrected_words]
+        else:
+            message = "Correct"
+            return [message]
 
     def give_json(self, correction_dict, file_name):
 

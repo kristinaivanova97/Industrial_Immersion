@@ -63,8 +63,8 @@
                 "REPLACE_impose", "REPLACE_adopt", "REPLACE_else_ales", "REPLACE_defeat", "REPLACE_eliminate",
                 "REPLACE_true", "REPLACE_right", "REPLACE_comparative_most", "REPLACE_comparative_more",
                 "REPLACE_comparative_least", "REPLACE_comparative_less", "REPLACE_most/more_comparative",
-                "REPLACE_least/less_comparative", "DELETE_more/most/least/less"],
-  "error_types": ["prep -> a/an",  "prep -> the", "insert prep the", "insert prep a/an", "plural -> single",
+                "REPLACE_least/less_comparative"],
+  "error_types": ["prep -> a/an",  "prep -> the", "delete prep", "insert prep a/an", "insert prep the", "plural -> single",
         "single -> plural", "plural verb -> single", "single verb -> plural", "pres -> pres cont", "pres cont -> pres",
         "then -> than", "than -> then", "bed -> bad", "bad -> bed",  "live -> life", "life -> live", "head -> had",
         "had -> head", "they -> the", "the -> they", "carrier -> career", "career -> carrier", "quantity -> a lot of",
@@ -122,6 +122,5 @@
         "maintain -> observe", "observe -> maintain", "serious -> earnest", "earnest -> serious",
         "impose/adopt -> provide", "provide -> impose", "provide -> adopt", "else -> ales", "eliminate -> defeat",
         "defeat -> eliminatе", "right -> true", "true -> right", "comparative -> most", "comparative -> most",
-        "comparative -> least", "comparative -> less", "most/more_comparative", "least/less_comparative",
-        "delete most/more/least/less"]
+        "comparative -> least", "comparative -> less", "most/more_comparative", "least/less_comparative"]
 }

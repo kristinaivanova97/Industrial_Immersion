@@ -26,9 +26,9 @@ class DataPreprocess:
             with h5py.File(data_dir + output_file, 'w') as f:
                 print(data_dir + output_file)
                 print(file_size)
-                dset_input_ids = f.create_dataset("input_ids", (file_size, 512), maxshape=(2500000, 512), dtype='i8')
-                dset_input_mask = f.create_dataset("input_mask", (file_size, 512), maxshape=(2500000, 512), dtype='i1')
-                dset_label_ids = f.create_dataset("label_ids", (file_size, 512), maxshape=(2500000, 512), dtype='i1')
+                dset_input_ids = f.create_dataset("input_ids", (file_size, 512), maxshape=(5500000, 512), dtype='i8')
+                dset_input_mask = f.create_dataset("input_mask", (file_size, 512), maxshape=(5500000, 512), dtype='i1')
+                dset_label_ids = f.create_dataset("label_ids", (file_size, 512), maxshape=(5500000, 512), dtype='i1')
                 line = file.readline()
                 stripped_line = line.strip()
                 line_list = stripped_line.split()
@@ -128,7 +128,7 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
     parts = ["train", "val", "test"]
 
     with h5py.File(os.path.join(data_dir, filename), 'r') as f:
-        with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+        # with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
 
             input_data = f['input_ids']
             idxs = list(range(len(input_data)))
@@ -183,6 +183,78 @@ def to_train_val_test_hdf(data_dir='./new_data/', output_dir='./data/', train_pa
                                 output_data[counter, :] = input_data[index, :]
                                 counter += 1
 
+def split_maintain_pairs(data_dir='./new_data/', output_dir='./data/', train_part=0.6, val_part=0.2, length=10000,
+                         random_seed=1, use_both_datasets=True, filename="ids_all.hdf5", suffix=''):
+    parts = ["train", "val", "test"]
+
+    with h5py.File(os.path.join(data_dir, filename), 'r') as f:
+        # with h5py.File(os.path.join(data_dir, "ids_all_news.hdf5"), 'r') as f2:
+
+            input_data = f['input_ids']
+            input_incorrect = input_data[:len(input_data)//2]
+            input_correct = input_data[len(input_data)//2:]
+            print(len(input_incorrect), len(input_correct))
+            idxs_incorrect = list(range(len(input_data)//2))
+            random.seed(random_seed)
+            random.shuffle(idxs_incorrect)
+            # idxs_correct = [i + len(input_data) // 2 for i in idxs_incorrect]
+
+            if use_both_datasets:
+                input_data2 = f2['input_ids']
+                input_incorrect2 = input_data2[:len(input_data2) // 2]
+                input_correct2 = input_data2[len(input_data2) // 2:]
+                print(len(input_incorrect2), len(input_correct2))
+                idxs_incorrect2 = list(range(len(input_data2) // 2))
+                random.shuffle(idxs_incorrect2)
+                # idxs_correct2 = [i + len(input_data) // 2 for i in idxs_incorrect2]
+
+            points = (
+                int(train_part * length),
+                int(train_part * length + val_part * length),
+                length
+            )
+
+            for params in zip(parts, (0,) + points[:-1], points):
+
+                part, start, end = params
+                with h5py.File(os.path.join(output_dir, f"{part}" + suffix + ".hdf5"), 'w') as file:
+
+                    for ftype in tqdm(["input_ids", "input_mask", "label_ids"]):
+                        counter = 0
+                        dtype_dict = {"input_ids": 'i8', "input_mask": 'i1', "label_ids": 'i1'}
+                        output_data = file.create_dataset(ftype, (2*(end - start), 512),
+                                                          maxshape=(1000000, 512),
+                                                          dtype=dtype_dict[ftype])
+                        if use_both_datasets:
+
+                            input_data = f[ftype]
+                            input_incorrect = input_data[:len(input_data) // 2]
+                            input_correct = input_data[len(input_data) // 2:]
+                            input_data2 = f2[ftype]
+                            input_incorrect2 = input_data2[:len(input_data2) // 2]
+                            input_correct2 = input_data2[len(input_data2) // 2:]
+
+                            for k, index in enumerate(tqdm(idxs_incorrect[start // 2:end // 2])):
+
+                                output_data[counter, :] = input_incorrect[index, :]
+                                counter += 1
+                                output_data[counter, :] = input_correct[index, :]
+                                counter += 1
+                            for index in tqdm(idxs_incorrect2[start // 2:end // 2]):
+                                output_data[counter, :] = input_incorrect2[index, :]
+                                counter += 1
+                                output_data[counter, :] = input_correct2[index, :]
+                                counter += 1
+                        else:
+                            input_data = f[ftype]
+                            input_incorrect = input_data[:len(input_data) // 2]
+                            input_correct = input_data[len(input_data) // 2:]
+                            for index in tqdm(idxs_incorrect[start:end]):
+                                output_data[counter, :] = input_incorrect[index, :]
+                                counter += 1
+                                output_data[counter, :] = input_correct[index, :]
+                                counter += 1
+
 
 def main():
     with open("config_datapreprocess.json") as json_data_file:
@@ -197,12 +269,12 @@ def main():
     if configs["part_of_word"]:
         label_list.append("[##]")
 
-    Path(configs["full_data_path_hdf"]).mkdir(parents=True, exist_ok=True)
-    data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news"],
-                                    label_list=label_list, tokenizer=tokenizer)
-    data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["full_data_path_hdf"],
-                                 part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
-    print("Finished with news")
+    # Path(configs["full_data_path_hdf"]).mkdir(parents=True, exist_ok=True)
+    # data_processor = DataPreprocess(path_to_file=configs["path_news"] + configs["file_news"],
+    #                                 label_list=label_list, tokenizer=tokenizer)
+    # data_processor.process_batch(output_file='ids_all_news.hdf5', data_dir=configs["full_data_path_hdf"],
+    #                              part_of_word=configs["part_of_word"], file_size=configs["news_filesize"])
+    # print("Finished with news")
 
     Path(configs["full_data_path_hdf"]).mkdir(parents=True, exist_ok=True)
     data_processor = DataPreprocess(path_to_file=configs["path_magazines"] + configs["file_magazines"],
@@ -211,11 +283,18 @@ def main():
                                  part_of_word=configs["part_of_word"], file_size=configs["magazines_filesize"])
     print("processed")
 
+    # Path(configs["split_data_path_hdf"]).mkdir(parents=True, exist_ok=True)
+    # to_train_val_test_hdf(data_dir=configs["full_data_path_hdf"], output_dir=configs["split_data_path_hdf"],
+    #                       train_part=configs["train_part"], val_part=configs["val_part"],
+    #                       length=configs["length_of_data"], random_seed=1,
+    #                       use_both_datasets=configs["use_both_datasets"])
+
     Path(configs["split_data_path_hdf"]).mkdir(parents=True, exist_ok=True)
-    to_train_val_test_hdf(data_dir=configs["full_data_path_hdf"], output_dir=configs["split_data_path_hdf"],
-                          train_part=configs["train_part"], val_part=configs["val_part"],
-                          length=configs["length_of_data"], random_seed=1,
-                          use_both_datasets=configs["use_both_datasets"])
+    split_maintain_pairs(data_dir=configs["full_data_path_hdf"], output_dir=configs["split_data_path_hdf"],
+                         train_part=configs["train_part"], val_part=configs["val_part"],
+                         length=configs["length_of_data"], random_seed=1,
+                         use_both_datasets=configs["use_both_datasets"])
+
     print("all in all")
 
 
