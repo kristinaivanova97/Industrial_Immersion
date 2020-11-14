@@ -53,23 +53,18 @@ class GetIndices:
 
 class TsyaModel:
 
-    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, config_of_model=None, weight_path=None,
-                 train_from_chk=False, device=device):
+    def __init__(self, seed_val,  adam_options, tokenizer, label_list, from_rubert, multilingual=True,
+                 config_of_model=None, weight_path=None, train_from_chk=False, device=device):
         if weight_path is not None:
             self.weight_path = weight_path
         self.label_list = label_list
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
-        if not from_rubert:
-            self.model = BertForTokenClassification.from_pretrained(
+        self.model = BertForTokenClassification.from_pretrained(
                                                     'bert-base-cased',
                                                     num_labels=len(self.label_list),
                                                     output_attentions=False,
                                                     output_hidden_states=False
                                                             )
-        else:
-            self.model = AutoModelWithLMHead.from_pretrained(
-                **config_of_model
-            )
 
         if train_from_chk:
             self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
@@ -240,7 +235,11 @@ class TsyaModel:
 
                 # Measure how long the validation run took.
                 validation_time = self.format_time(time.time() - t0)
-
+                # with open("logs.txt", 'r+') as f:
+                #     f.write("  Validation Loss: {0:.3f}".format(avg_val_loss))
+                #     f.write("  Validation took: {:}".format(validation_time))
+                #     f.write("  Average training loss: {0:.3f}".format(avg_train_loss))
+                #     f.write("  Training epoch took: {:}".format(training_time))
                 print("  Validation Loss: {0:.3f}".format(avg_val_loss))
                 print("  Validation took: {:}".format(validation_time))
 

@@ -8,27 +8,24 @@ class OrphoNet:
     
     def __init__(self):
         with open("config_stand.json") as json_data_file:
-            configs = json.load(json_data_file)
+            self.configs = json.load(json_data_file)
         with open("test.json") as json_data_file:
             tags = json.load(json_data_file)
 
-        if not configs['from_rubert']:
-            tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
-
-        else:
-            tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
+        tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
 
         self.output = ProcessOutput(tokenizer=tokenizer)
         self.data_processor = TestPreprocess(tokenizer=tokenizer)
-        self.model = TsyaModel(weight_path=configs['weight_path'] + configs['chckp_file'],
-                               train_from_chk=configs['train_from_chk'],
-                               label_list=tags['label_list'], seed_val=configs["seed_val"],
-                               from_rubert=configs['from_rubert'], adam_options=configs["adam_options"],
-                               tokenizer=tokenizer, config_of_model=configs["config_of_model"])
+        self.model = TsyaModel(weight_path=self.configs['weight_path'] + self.configs['chckp_file'],
+                               train_from_chk=self.configs['train_from_chk'],
+                               label_list=self.configs['label_list'], seed_val=self.configs["seed_val"],
+                               from_rubert=self.configs['from_rubert'], adam_options=self.configs["adam_options"],
+                               tokenizer=tokenizer, config_of_model=self.configs["config_of_model"], multilingual=False)
 
     def execute(self, sentences, default_value='Correct'):
 
-        input_ids, mask_ids, prediction_dataloader, nopad = self.data_processor.process(text=[sentences])
+        input_ids, mask_ids, prediction_dataloader, nopad = \
+            self.data_processor.process(text=[sentences], max_seq_length=self.configs["max_seq_len"])
 
         predicts, probabilities, probabilities_o = self.model.predict_batch(prediction_dataloader, nopad)
         correct_text, correction_dict, words_errors, incorrect_words, corrected_words = \
@@ -71,11 +68,11 @@ class OrphoNet:
 # ФМС и будет рассмотрен в установленом законом порядке."
 
 
-# model = OrphoNet()
-# # text_data = "Бонне, Шарлотта\n"
-# # text_data = "Все знатоки фольклора пришли к единому мнению, что к детскому фольклору относятся и произведения детей,\
-# #  и произведения, написанные для детей взрослыми."
-# output = model.execute(text_data, 'Incorrect')
-# # model.give_json(output[2], 'model_output.json')
-# for out in output:
-#     print(out)
+model = OrphoNet()
+text_data = "I cannot agree with this opinion because the most effective way to see if a student honestly and " \
+            "independently passed exams or tests is to students personal presence."
+output = model.execute(text_data, 'Incorrect')
+# model.give_json(output[2], 'model_output.json')
+for out in output:
+    print(out)
+

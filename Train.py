@@ -9,10 +9,7 @@ import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 
-def main():
-
-    with open("config_train.json") as json_data_file:
-        configs = json.load(json_data_file)
+def main(configs):
 
     train_data_processor = GetIndices(ftype=configs["train_file"], data_dir=configs["data_path"])
     train_data_processor.upload_hdf()
@@ -46,20 +43,20 @@ def main():
 
     model = TsyaModel(label_list=label_list, weight_path=None, train_from_chk=configs["train_from_chk"],
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
-                      config_of_model=configs['config_of_model'], adam_options=configs['adam_options'])
+                      config_of_model=configs['config_of_model'], adam_options=configs['adam_options'],
+                      multilingual=False)
 
     Path(configs["weight_path"]).mkdir(parents=True, exist_ok=True)
     number_of_chkp = 0
-    path_to_file_chkp = configs["weight_path"] + configs["chckp_file"] \
-                        + str(datetime.date(datetime.now()).year)[-2:] + str(datetime.date(datetime.now()).month) \
-                        + str(datetime.date(datetime.now()).day) \
-                        + "_" + str(number_of_chkp)
+    path_to_file_chkp = \
+        configs["weight_path"] + configs["chckp_file"] + str(datetime.date(datetime.now()).year)[-2:] + \
+        str(datetime.date(datetime.now()).month) + str(datetime.date(datetime.now()).day) + "_" + str(number_of_chkp)
     while Path(path_to_file_chkp + ".pth").is_file():
-        number_of_chkp+=1
-        path_to_file_chkp = configs["weight_path"] + configs["chckp_file"] \
-                            + str(datetime.date(datetime.now()).year)[-2:] + str(datetime.date(datetime.now()).month) \
-                            + str(datetime.date(datetime.now()).day) \
-                            + "_" + str(number_of_chkp)
+        number_of_chkp += 1
+        path_to_file_chkp = \
+            configs["weight_path"] + configs["chckp_file"] + str(datetime.date(datetime.now()).year)[-2:] + \
+            str(datetime.date(datetime.now()).month) + str(datetime.date(datetime.now()).day) + \
+            "_" + str(number_of_chkp)
 
     model.train(train_data_processor=train_data_processor, val_data_processor=val_data_processor,
                 chkp_path=path_to_file_chkp + ".pth", epochs=configs["epochs"],
@@ -67,4 +64,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+
+    with open("config_retrain.json") as json_data_file:
+        config = json.load(json_data_file)
+
+    main(config)
