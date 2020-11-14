@@ -31,7 +31,7 @@ class OrphoNet:
         correct_text, correction_dict, words_errors, incorrect_words, corrected_words = \
             self.output.process_sentence_optimal(
                     predicts, input_ids, nopad, [sentences], probabilities, probabilities_o,
-                    default_value, threshold=0.5, for_stand=False)
+                    default_value, threshold=0.5, check_in_dict=self.configs["check_in_dict"])
         if len(correction_dict.keys()) > 0:
             message = "Incorrect"
             return [message, correct_text, correction_dict, words_errors, incorrect_words, corrected_words]
@@ -43,20 +43,6 @@ class OrphoNet:
 
         with open(file_name, 'w', encoding='utf-8') as outfile:
             json.dump(correction_dict, outfile, ensure_ascii=False, indent=4)
-
-    def execute_old(self, sentences, default_value):
-        data_with_tsya_or_nn = self.data_processor.check_contain_tsya_or_nn([sentences])
-        if len(data_with_tsya_or_nn) == 0:
-            message = [[["Correct"]]]
-            return message
-        else:
-            input_ids, mask_ids, prediction_dataloader, nopad = self.data_processor.process(text=data_with_tsya_or_nn)
-
-            predicts, probabilities, probabilities_o = self.model.predict_batch(prediction_dataloader, nopad)
-            message, incorrect_words, correct_text, error, probs, probs_O, _ = self.output.process_sentence(
-                        predicts, input_ids, nopad, data_with_tsya_or_nn, probabilities, probabilities_o,
-                        default_value, threshold=0.5)
-            return message, incorrect_words, correct_text, error, probs, probs_O
 
 # text_data = 'мощёная каменными плитами дорога'
 # text_data = "Если находится внутри задачи, то написать что-то в форму обратной связи становится невозможно."

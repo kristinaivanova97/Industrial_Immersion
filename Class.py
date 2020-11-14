@@ -410,7 +410,7 @@ class ProcessOutput:
         return dicty, correct_text, word, correct
     
     def process_sentence_optimal(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
-                                 default_value, threshold=0.5, for_stand=False):
+                                 default_value, threshold=0.5, check_in_dict=True):
         tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
         correct_text = text_data[0]
         preds = np.array(prediction[0][0])
@@ -562,12 +562,20 @@ class ProcessOutput:
                                 self.correct_replace(word+' ', '', correct_text, correction_dict, positional_symbols,
                                                      word_error_prob, tok_error_type, tok_place, tokens)
                         elif tok_error_type == "plural -> single":
-                            if word.lower() in plural_words:
-                                inserted_ids = plural_words.index(word.lower())
-                                word_correct = single_words[inserted_ids]
+                            if check_in_dict:
+                                if word.lower() in plural_words:
+                                    inserted_ids = plural_words.index(word.lower())
+                                    word_correct = single_words[inserted_ids]
+                                else:
+                                    correction_dict.pop(tok_place)
+                                    break
                             else:
-                                correction_dict.pop(tok_place)
-                                break
+                                try:
+                                    inserted_ids = plural_words.index(word.lower())
+                                    word_correct = single_words[inserted_ids]
+                                except IndexError:
+                                    correction_dict.pop(tok_place)
+                                    break
                             if word.isupper():
                                 word_correct = word_correct.upper()
                             elif word.istitle():
@@ -581,12 +589,20 @@ class ProcessOutput:
                                                      tokens)
 
                         elif tok_error_type == "single -> plural":
-                            if word.lower() in single_words:
-                                inserted_ids = single_words.index(word.lower())
-                                word_correct = plural_words[inserted_ids]
+                            if check_in_dict:
+                                if word.lower() in single_words:
+                                    inserted_ids = single_words.index(word.lower())
+                                    word_correct = plural_words[inserted_ids]
+                                else:
+                                    correction_dict.pop(tok_place)
+                                    break
                             else:
-                                correction_dict.pop(tok_place)
-                                break
+                                try:
+                                    inserted_ids = single_words.index(word.lower())
+                                    word_correct = plural_words[inserted_ids]
+                                except IndexError:
+                                    correction_dict.pop(tok_place)
+                                    break
                             if tokens[tok_place - 1] in ['a', 'A', 'an', 'An', 'AN']:
                                 correction_dict, correct_text, word_full, word_correct_full = \
                                     self.correct_replace(tokens[tok_place - 1] + word, word_correct, correct_text,
@@ -598,12 +614,20 @@ class ProcessOutput:
                                                          positional_symbols, word_error_prob, tok_error_type,
                                                          tok_place, tokens)
                         elif tok_error_type == "plural verb -> single":
-                            if word.lower() in verb_plural:
-                                inserted_ids = verb_plural.index(word.lower())
-                                word_correct = verb_single[inserted_ids]
+                            if check_in_dict:
+                                if word.lower() in verb_plural:
+                                    inserted_ids = verb_plural.index(word.lower())
+                                    word_correct = verb_single[inserted_ids]
+                                else:
+                                    correction_dict.pop(tok_place)
+                                    break
                             else:
-                                correction_dict.pop(tok_place)
-                                break
+                                try:
+                                    inserted_ids = verb_plural.index(word.lower())
+                                    word_correct = verb_single[inserted_ids]
+                                except IndexError:
+                                    correction_dict.pop(tok_place)
+                                    break
                             if word.isupper():
                                 word_correct = word_correct.upper()
                             elif word.istitle():
@@ -613,12 +637,20 @@ class ProcessOutput:
                                                      positional_symbols, word_error_prob, tok_error_type,
                                                      tok_place, tokens)
                         elif tok_error_type == "single verb -> plural":
-                            if word.lower() in verb_single:
-                                inserted_ids = verb_single.index(word.lower())
-                                word_correct = verb_plural[inserted_ids]
+                            if check_in_dict:
+                                if word.lower() in verb_single:
+                                    inserted_ids = verb_single.index(word.lower())
+                                    word_correct = verb_plural[inserted_ids]
+                                else:
+                                    correction_dict.pop(tok_place)
+                                    break
                             else:
-                                correction_dict.pop(tok_place)
-                                break
+                                try:
+                                    inserted_ids = verb_single.index(word.lower())
+                                    word_correct = verb_plural[inserted_ids]
+                                except IndexError:
+                                    correction_dict.pop(tok_place)
+                                    break
                             if word.isupper():
                                 word_correct = word_correct.upper()
                             elif word.istitle():
