@@ -61,38 +61,6 @@ class TestPreprocess:
         prediction_dataloader = DataLoader(prediction_data, sampler=prediction_sampler, batch_size=batch_size)
         return input_ids, attention_masks, prediction_dataloader, nopad
 
-    def check_contain(self, data):
-
-        data_with_tsya_or_nn = []
-        prep_search = re.compile(r'(\ba\b)|(\ban\b)|(\bthe\b)', re.IGNORECASE)
-        then_than_search = re.compile(r'(\bthen\b)|(\bthan\b)', re.IGNORECASE)
-        bad_bed_search = re.compile(r'(\bbad\b)|(\bbed\b)', re.IGNORECASE)
-        live_life_search = re.compile(r'(\blife\b)|(\blive\b)', re.IGNORECASE)
-        head_had_search = re.compile(r'(\bhad\b)|(\bhead\b)', re.IGNORECASE)
-        career_carrier_search = re.compile(r'(\bcareer\b)|(\bcarrier\b)', re.IGNORECASE)
-        many_much_alotof_search = re.compile(r'(\bmany\b)|(\bmuch\b)|(\blot\s+of\b)', re.IGNORECASE)
-        inonatofforto_search = re.compile(r'(\bin\b)|(\bon\b)|(\bat\b)|(\bof\b)|(\bfor\b)|(\bTO\b)', re.IGNORECASE)
-
-        for sentence in data:
-
-            places_with_prep = prep_search.search(sentence)
-            places_with_then_than = then_than_search.search(sentence)
-            places_with_bad_bed = bad_bed_search.search(sentence)
-            places_with_live_life = live_life_search.search(sentence)
-            places_with_head_had = head_had_search.search(sentence)
-            places_with_career_carrier = career_carrier_search.search(sentence)
-            places_with_many_much_alotof = many_much_alotof_search.search(sentence)
-            places_with_inonatofforto = inonatofforto_search.search(sentence)
-
-            if (places_with_prep is not None) or (places_with_then_than is not None)\
-                    or (places_with_bad_bed is not None) or (places_with_live_life is not None)\
-                    or (places_with_head_had is not None) or (places_with_career_carrier is not None)\
-                    or (places_with_many_much_alotof is not None) or (places_with_inonatofforto is not None):
-                data_with_tsya_or_nn.append(sentence)
-
-        return data_with_tsya_or_nn
-
-
 class ProcessOutput:
 
     def __init__(self, tokenizer):
@@ -107,6 +75,25 @@ class ProcessOutput:
         print(self.error_types)
         with open("dict_for_output_competition.json", "r") as jsonFile:
             self.data = json.load(jsonFile)
+            
+        with open('noun&verb/noun.txt', 'r') as f:
+            pairs = f.read().splitlines()
+        self.single_words = [pair.split('\t')[0] for pair in pairs]
+        self.plural_words = [pair.split('\t')[1] for pair in pairs]
+        with open('verb/verb_pres_past.txt', 'r') as f:
+            pairs = f.read().splitlines()
+        self.verb_present = [pair.split('\t')[0] for pair in pairs]
+        self.verb_past = [pair.split('\t')[1] for pair in pairs]
+        with open('verb/verb_full_prdg.txt', 'r') as f:
+            quintets = f.read().splitlines()
+        self.verb_single = [pair.split('\t')[1] for pair in quintets]
+        self.verb_plural = [pair.split('\t')[0] for pair in quintets]
+        self.verb_continuous = [triple.split('\t')[2] for triple in quintets]
+
+        self.d_search = re.compile(r"\w+d\b", re.IGNORECASE)
+        self.ing_search = re.compile(r"\w+ing\b", re.IGNORECASE)
+        self.s_search = re.compile(r"\w+s\b", re.IGNORECASE)
+        self.ed_search = re.compile(r"\w+ed\b", re.IGNORECASE)
 
     def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text):
         print("Tokens = ", tokens, file=file_name)
@@ -262,7 +249,7 @@ class ProcessOutput:
         return corrected
 
     def replace_multiple(self, tobereplaced, replace_char, word, dicty, place, word_error_prob, correct_text,
-                         tok_error_type, positional_symbols, word_correct, tokens):
+                         tok_error_type, positional_symbols, word_correct, tokens, initial_position):
         for char in tobereplaced:
             if len(replace_char) > 1:
                 if len(char) > 1:
@@ -284,20 +271,20 @@ class ProcessOutput:
                         replace(char.lower(), replace_char)
             if word != word_correct:
                 break
-        dicty, correct_text, word, word_correct = \
+        dicty, correct_text, word_full, word_correct_full = \
             self.correct_replace(word, word_correct, correct_text, dicty, positional_symbols, word_error_prob,
-                                 tok_error_type, place, tokens)
-        return dicty, word_correct, correct_text, word
+                                 tok_error_type, place, tokens, initial_position)
+        return dicty, word_correct_full, correct_text, word_full, word_correct
 
     def multiple_insert(self, insert_list, tok_error_type, inserted_char_list, word, place, word_error_prob, dicty,
-                        correct_text, positional_symbols, tokens):
+                        correct_text, positional_symbols, tokens, initial_position):
         inserted_ids = insert_list.index(tok_error_type)
         inserted_char = inserted_char_list[inserted_ids]
         word_correct = self.upper_or_lower(word, place, inserted_char)
-        dicty, correct_text, word, word_correct = \
+        dicty, correct_text, word_full, word_correct_full = \
             self.correct_replace(word, word_correct, correct_text, dicty, positional_symbols, word_error_prob,
-                                 tok_error_type, place, tokens)
-        return dicty, word_correct, correct_text, word
+                                 tok_error_type, place, tokens, initial_position)
+        return dicty, word_correct_full, correct_text, word_full, word_correct
 
     def choose_comparative_form(self, word, compare_type):  # word in lower form
         vowel = re.compile("[aeiouy]", re.IGNORECASE)
@@ -397,17 +384,20 @@ class ProcessOutput:
         return word_final
 
     def correct_replace(self, word, correct, correct_text, dicty, position, word_error_prob, tok_error_type, place,
-                        tokens, insert_next=True):
-        replace_text = correct_text[position:position + len(word.encode("utf8")) + 1].replace(word, correct)
+                        tokens, initial_position, insert_next=True):
+        replace_text = correct_text[position:position + len(word) + 1].replace(word, correct)
         correct_text = "".join((correct_text[:position], replace_text,
-                                correct_text[position + len(word.encode("utf8")) + 1:]))
+                                correct_text[position + len(word) + 1:]))
+        word_full = word
+        correct_full = correct
         if insert_next:
             word_next = self.check_next_word(tokens, place, correct_text, word)
-            word += word_next
-            correct += word_next
-        dicty[place] = [word + "->" + correct, str(word_error_prob), tok_error_type, position, len(word.encode("utf8"))]
+            word_full += word_next
+            correct_full += word_next
+        dicty[place] = [word_full + "->" + correct_full, str(word_error_prob), tok_error_type, initial_position,
+                        len(word_full)]
 
-        return dicty, correct_text, word, correct
+        return dicty, correct_text, word_full, correct_full
     
     def process_sentence_optimal(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
                                  default_value, threshold=0.5, check_in_dict=True):
@@ -446,24 +436,6 @@ class ProcessOutput:
                               "upon", "within", "above", "below"]
         inserted_list_verb = ["is", "are", "be", "was", "were", "will", "shall", "being", "do", "does", "did", "doing",
                               "have", "has", "had", "having", "can", "could", "may"]
-        with open('noun&verb/noun.txt', 'r') as f:
-            pairs = f.read().splitlines()
-        single_words = [pair.split('\t')[0] for pair in pairs]
-        plural_words = [pair.split('\t')[1] for pair in pairs]
-        with open('verb/verb_pres_past.txt', 'r') as f:
-            pairs = f.read().splitlines()
-        verb_present = [pair.split('\t')[0] for pair in pairs]
-        verb_past = [pair.split('\t')[1] for pair in pairs]
-        with open('verb/verb_full_prdg.txt', 'r') as f:
-            quintets = f.read().splitlines()
-        verb_single = [pair.split('\t')[1] for pair in quintets]
-        verb_plural = [pair.split('\t')[0] for pair in quintets]
-        verb_continuous = [triple.split('\t')[2] for triple in quintets]
-
-        d_search = re.compile(r"\w+d\b", re.IGNORECASE)
-        ing_search = re.compile(r"\w+ing\b", re.IGNORECASE)
-        s_search = re.compile(r"\w+s\b", re.IGNORECASE)
-        ed_search = re.compile(r"\w+ed\b", re.IGNORECASE)
 
         lemmatizer = WordNetLemmatizer()
         symb = 0
@@ -475,8 +447,9 @@ class ProcessOutput:
         backslash_n = 0
         while text_data[0][backslash_n] == '\n':
             backslash_n += 1
-        positional_symbols = int(0) - len("[CLS]".encode("utf8")) + symb + tabs * len('\t'.encode("utf8")) + \
-                             backslash_n * len('\n'.encode("utf8"))
+        positional_symbols = int(0) - len("[CLS]") + symb + tabs * len('\t') + \
+                             backslash_n * len('\n')
+        initial_position = positional_symbols
 
         for tok_place, token in enumerate(tokens):
             word_correct = ''
@@ -527,15 +500,15 @@ class ProcessOutput:
                                 else:
                                     prep = 'a'
                             
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple([char], prep, word, correction_dict, tok_place, word_error_prob,
                                                       correct_text, tok_error_type, positional_symbols, word_correct,
-                                                      tokens)
+                                                      tokens, initial_position)
                         elif tok_error_type == 'prep -> the':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['A', 'AN'], "the", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'insert prep a/an':
                             if len(word) > 1:
                                 prep = self.check_a_an(word.lower())
@@ -550,237 +523,199 @@ class ProcessOutput:
                             correction_dict, correct_text, word_full, word_correct_full = \
                                 self.correct_replace(word, word_correct, correct_text, correction_dict,
                                                      positional_symbols, word_error_prob, tok_error_type, tok_place,
-                                                     tokens, insert_next=False)
+                                                     tokens, initial_position, insert_next=True)
                         elif tok_error_type == 'insert prep the':
                             word_correct = self.upper_or_lower(word, tok_place, 'the')
                             correction_dict, correct_text, word_full, word_correct_full =  \
                                 self.correct_replace(word, word_correct, correct_text, correction_dict,
                                                      positional_symbols, word_error_prob, tok_error_type, tok_place,
-                                                     tokens, insert_next=False)
+                                                     tokens, initial_position, insert_next=True)
                         elif tok_error_type == 'delete prep':
                             correction_dict, correct_text, word_full, word_correct_full = \
                                 self.correct_replace(word+' ', '', correct_text, correction_dict, positional_symbols,
-                                                     word_error_prob, tok_error_type, tok_place, tokens)
+                                                     word_error_prob, tok_error_type, tok_place, tokens, 
+                                                     initial_position)
                         elif tok_error_type == "plural -> single":
                             if check_in_dict:
-                                if word.lower() in plural_words:
-                                    inserted_ids = plural_words.index(word.lower())
-                                    word_correct = single_words[inserted_ids]
+                                if word.lower() in self.plural_words:
+                                    inserted_ids = self.plural_words.index(word.lower())
+                                    word_correct = self.single_words[inserted_ids]
                                 else:
                                     correction_dict.pop(tok_place)
                                     break
+                                if word.isupper():
+                                    word_correct = word_correct.upper()
+                                elif word.istitle():
+                                    word_correct = word_correct.title()
+                                if tokens[tok_place - 1] not in ['the', 'The', 'THE']:
+                                    prep = self.check_a_an(word.lower())
+                                    word_correct = self.upper_or_lower(word_correct, tok_place, prep)
+                                correction_dict, correct_text, word_full, word_correct_full = \
+                                    self.correct_replace(word, word_correct, correct_text, correction_dict,
+                                                         positional_symbols, word_error_prob, tok_error_type, tok_place,
+                                                         tokens, initial_position)
                             else:
                                 try:
-                                    inserted_ids = plural_words.index(word.lower())
-                                    word_correct = single_words[inserted_ids]
+                                    inserted_ids = self.plural_words.index(word.lower())
+                                    word_correct = self.single_words[inserted_ids]
                                 except IndexError:
                                     correction_dict.pop(tok_place)
                                     break
-                            if word.isupper():
-                                word_correct = word_correct.upper()
-                            elif word.istitle():
-                                word_correct = word_correct.title()
-                            if tokens[tok_place - 1] not in ['the', 'The', 'THE']:
-                                prep = self.check_a_an(word.lower())
-                                word_correct = self.upper_or_lower(word_correct, tok_place, prep)
-                            correction_dict, correct_text, word_full, word_correct_full = \
-                                self.correct_replace(word, word_correct, correct_text, correction_dict,
-                                                     positional_symbols, word_error_prob, tok_error_type, tok_place,
-                                                     tokens)
 
                         elif tok_error_type == "single -> plural":
                             if check_in_dict:
-                                if word.lower() in single_words:
-                                    inserted_ids = single_words.index(word.lower())
-                                    word_correct = plural_words[inserted_ids]
+                                if word.lower() in self.single_words:
+                                    inserted_ids = self.single_words.index(word.lower())
+                                    word_correct = self.plural_words[inserted_ids]
                                 else:
                                     correction_dict.pop(tok_place)
                                     break
+                                if tokens[tok_place - 1] in ['a', 'A', 'an', 'An', 'AN']:
+                                    correction_dict, correct_text, word_full, word_correct_full = \
+                                        self.correct_replace(tokens[tok_place - 1] + word, word_correct, correct_text,
+                                                             correction_dict, positional_symbols, word_error_prob,
+                                                             tok_error_type, tok_place, tokens, initial_position)
+                                else:
+                                    correction_dict, correct_text, word_full, word_correct_full = \
+                                        self.correct_replace(word, word_correct, correct_text, correction_dict,
+                                                             positional_symbols, word_error_prob, tok_error_type,
+                                                             tok_place, tokens, initial_position)
                             else:
                                 try:
-                                    inserted_ids = single_words.index(word.lower())
-                                    word_correct = plural_words[inserted_ids]
+                                    inserted_ids = self.single_words.index(word.lower())
+                                    word_correct = self.plural_words[inserted_ids]
                                 except IndexError:
                                     correction_dict.pop(tok_place)
                                     break
-                            if tokens[tok_place - 1] in ['a', 'A', 'an', 'An', 'AN']:
-                                correction_dict, correct_text, word_full, word_correct_full = \
-                                    self.correct_replace(tokens[tok_place - 1] + word, word_correct, correct_text,
-                                                         correction_dict, positional_symbols, word_error_prob,
-                                                         tok_error_type, tok_place, tokens)
-                            else:
+
+                        elif tok_error_type == "plural verb -> single":
+                            if check_in_dict:
+                                if word.lower() in self.verb_plural:
+                                    inserted_ids = self.verb_plural.index(word.lower())
+                                    word_correct = self.verb_single[inserted_ids]
+                                else:
+                                    correction_dict.pop(tok_place)
+                                    break
+                                if word.isupper():
+                                    word_correct = word_correct.upper()
+                                elif word.istitle():
+                                    word_correct = word_correct.title()
                                 correction_dict, correct_text, word_full, word_correct_full = \
                                     self.correct_replace(word, word_correct, correct_text, correction_dict,
                                                          positional_symbols, word_error_prob, tok_error_type,
-                                                         tok_place, tokens)
-                        elif tok_error_type == "plural verb -> single":
-                            if check_in_dict:
-                                if word.lower() in verb_plural:
-                                    inserted_ids = verb_plural.index(word.lower())
-                                    word_correct = verb_single[inserted_ids]
-                                else:
-                                    correction_dict.pop(tok_place)
-                                    break
+                                                         tok_place, tokens, initial_position)
                             else:
                                 try:
-                                    inserted_ids = verb_plural.index(word.lower())
-                                    word_correct = verb_single[inserted_ids]
+                                    inserted_ids = self.verb_plural.index(word.lower())
+                                    word_correct = self.verb_single[inserted_ids]
                                 except IndexError:
                                     correction_dict.pop(tok_place)
                                     break
-                            if word.isupper():
-                                word_correct = word_correct.upper()
-                            elif word.istitle():
-                                word_correct = word_correct.title()
-                            correction_dict, correct_text, word_full, word_correct_full = \
-                                self.correct_replace(word, word_correct, correct_text, correction_dict,
-                                                     positional_symbols, word_error_prob, tok_error_type,
-                                                     tok_place, tokens)
                         elif tok_error_type == "single verb -> plural":
                             if check_in_dict:
-                                if word.lower() in verb_single:
-                                    inserted_ids = verb_single.index(word.lower())
-                                    word_correct = verb_plural[inserted_ids]
+                                if word.lower() in self.verb_single:
+                                    inserted_ids = self.verb_single.index(word.lower())
+                                    word_correct = self.verb_plural[inserted_ids]
                                 else:
                                     correction_dict.pop(tok_place)
                                     break
+                                if word.isupper():
+                                    word_correct = word_correct.upper()
+                                elif word.istitle():
+                                    word_correct = word_correct.title()
+                                correction_dict, correct_text, word_full, word_correct_full = \
+                                    self.correct_replace(word, word_correct, correct_text, correction_dict,
+                                                         positional_symbols, word_error_prob, tok_error_type,
+                                                         tok_place, tokens, initial_position)
                             else:
                                 try:
-                                    inserted_ids = verb_single.index(word.lower())
-                                    word_correct = verb_plural[inserted_ids]
+                                    inserted_ids = self.verb_single.index(word.lower())
+                                    word_correct = self.verb_plural[inserted_ids]
                                 except IndexError:
                                     correction_dict.pop(tok_place)
                                     break
-                            if word.isupper():
-                                word_correct = word_correct.upper()
-                            elif word.istitle():
-                                word_correct = word_correct.title()
-                            correction_dict, correct_text, word_full, word_correct_full = \
-                                self.correct_replace(word, word_correct, correct_text, correction_dict,
-                                                     positional_symbols, word_error_prob, tok_error_type,
-                                                     tok_place, tokens)
-                        elif tok_error_type == "pres -> pres cont":
-                            if word.lower() in verb_single:
-                                inserted_ids = verb_single.index(word.lower())
-                                prep = 'is'
-                            elif word.lower() in verb_plural:
-                                inserted_ids = verb_plural.index(word.lower())
-                                prep = 'are'
-                            word_correct = verb_continuous[inserted_ids]
-                            if word.isupper():
-                                word_correct = word_correct.upper()
-                            elif word.istitle():
-                                word_correct = word_correct.title()
-                            word_correct = self.upper_or_lower(word_correct, tok_place, prep)
-                            correction_dict, correct_text, word_full, word_correct_full = \
-                                self.correct_replace(word, word_correct, correct_text, correction_dict,
-                                                     positional_symbols, word_error_prob, tok_error_type,
-                                                     tok_place, tokens)
-                        elif tok_error_type == "pres cont -> pres":
-                            prep = tokens[tok_place - 1]
-                            inserted_ids = verb_continuous.index(word.lower())
-                            if prep.lower() == 'is':
-                                word_correct = verb_single[inserted_ids]
-                            elif prep.lower() == 'are':
-                                word_correct = verb_plural[inserted_ids]
-                            if word.isupper():
-                                word_correct = word_correct.upper()
-                            elif word.istitle():
-                                word_correct = word_correct.title()
-                            correction_dict, correct_text, word_full, word_correct_full = \
-                                self.correct_replace(prep+word, word_correct, correct_text, correction_dict,
-                                                     positional_symbols, word_error_prob, tok_error_type,
-                                                     tok_place, tokens)
+
                         elif tok_error_type == 'then -> than':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['THEN'], "than", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'than -> then':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['THAN'], "then", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'bad -> bed':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['BAD'], "bed", word, correction_dict, tok_place, word_error_prob,
                                                       correct_text, tok_error_type, positional_symbols, word_correct,
-                                                      tokens)
+                                                      tokens, initial_position)
+
                         elif tok_error_type == 'bed -> bad':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['BED'], "bad", word, correction_dict, tok_place, word_error_prob,
                                                       correct_text, tok_error_type, positional_symbols, word_correct,
-                                                      tokens)
+                                                      tokens, initial_position)
                         elif tok_error_type == 'live -> life':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['LIVE'], "life", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'life -> live':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['LIFE'], "live", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'head -> had':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['HEAD'], "had", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text,
-                                                      tok_error_type, positional_symbols, word_correct, tokens)
+                                                      tok_error_type, positional_symbols, word_correct, tokens, initial_position)
                         elif tok_error_type == 'had -> head':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['HAD'], "head", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["they -> the",  "the -> they"]:
-                            inserted_ids = ["they -> the",  "the -> they"].index(tok_error_type)
-                            inserted_l = ["the", "they"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'career -> carrier':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['CAREER'], "carrier", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'carrier -> career':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['CARRIER'], "career", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'quantity -> a lot of':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['MANY', 'MUCH'], "a lot of", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'quantity -> many':
-
-                            if 'lot' in word.lower():
-                                word = tokens[tok_place - 1] + ' ' + word + ' ' + tokens[tok_place + 1]
-                                correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['A LOT OF'], "many", word, correction_dict, tok_place+1,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                            else:
-                                correction_dict, word_correct_full, correct_text, word_full = \
-                                    self.replace_multiple(['MUCH'], "many", word, correction_dict,
-                                                          tok_place, word_error_prob, correct_text, tok_error_type,
-                                                          positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'quantity -> much':
-                            if 'lot' in word.lower():
-                                word = tokens[tok_place - 1] + ' ' + word + ' ' + tokens[tok_place + 1]
-                                correction_dict, word_correct_full, correct_text, word_full = \
-                                    self.replace_multiple(['A LOT OF'], "much", word, correction_dict,
-                                                          tok_place + 1, word_error_prob, correct_text, tok_error_type,
-                                                          positional_symbols,word_correct, tokens)
-                            else:
-                                correction_dict, word_correct_full, correct_text, word_full = \
-                                    self.replace_multiple(['MANY'], "much", word, correction_dict, tok_place,
-                                                          word_error_prob, correct_text, tok_error_type,
-                                                          positional_symbols,  word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity -> a lot of':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['MANY', 'MUCH'], "a lot of", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity -> many':
+                        #
+                        #     if 'lot' in word.lower():
+                        #         word = tokens[tok_place - 1] + ' ' + word + ' ' + tokens[tok_place + 1]
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['A LOT OF'], "many", word, correction_dict, tok_place+1,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        #     else:
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #             self.replace_multiple(['MUCH'], "many", word, correction_dict,
+                        #                                   tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                                   positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity -> much':
+                        #     if 'lot' in word.lower():
+                        #         word = tokens[tok_place - 1] + ' ' + word + ' ' + tokens[tok_place + 1]
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #             self.replace_multiple(['A LOT OF'], "much", word, correction_dict,
+                        #                                   tok_place + 1, word_error_prob, correct_text, tok_error_type,
+                        #                                   positional_symbols,word_correct, tokens, initial_position)
+                        #     else:
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #             self.replace_multiple(['MANY'], "much", word, correction_dict, tok_place,
+                        #                                   word_error_prob, correct_text, tok_error_type,
+                        #                                   positional_symbols,  word_correct, tokens, initial_position)
                         elif tok_error_type in ['inonatofby -> in', 'inonatofby -> on', 'inonatofby -> at',
                                                 'inonatofby -> of', 'inonatofby -> by']:
                             inserted_ids = ['inonatofby -> in', 'inonatofby -> on', 'inonatofby -> at',
@@ -789,10 +724,10 @@ class ProcessOutput:
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                             pos = 1
                             word_prev = ''
                             while '#' in tokens[tok_place-pos]:
@@ -806,7 +741,7 @@ class ProcessOutput:
                             correction_dict, correct_text, word_full, word_correct_full = \
                                 self.correct_replace(word, word_correct, correct_text, correction_dict,
                                                      positional_symbols, word_error_prob, tok_error_type,
-                                                     tok_place, tokens)
+                                                     tok_place, tokens, initial_position)
                         elif tok_error_type in ["toforoffrom -> to", "toforoffrom -> for", "toforoffrom -> of",
                                                 "toforoffrom -> from"]:
                             inserted_ids = ["toforoffrom -> to", "toforoffrom -> for", "toforoffrom -> of",
@@ -815,30 +750,30 @@ class ProcessOutput:
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'inwithin -> in':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['WITHIN'], "in", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'inwithin -> within':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['IN'], "within", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'between -> among':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['BETWEEN'], "among", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'among -> between':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['AMONG'], "between", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type in ['thatwhichwhowhom -> that', 'thatwhichwhowhom -> which',
                                                 'thatwhichwhowhom -> whom', 'thatwhichwhowhom -> who']:
                             inserted_ids = ['thatwhichwhowhom -> that', 'thatwhichwhowhom -> which',
@@ -847,285 +782,99 @@ class ProcessOutput:
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'that -> but':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THAT'], "but", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'thisthese -> this':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THESE'], "this", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'thisthese -> these':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THIS'], "these", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-
-                        elif tok_error_type == 'thatthose -> that':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THOSE'], "that", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'thatthose -> those':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THAT'], "those", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'where -> there':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['WHERE'], "there", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'there -> where':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['THERE'], "where", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'this -> it':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THIS'], "it", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'it -> this':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['IT'], "this", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'that -> it':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THAT'], "it", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'it -> that':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['IT'], "that", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'they -> it':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THEY'], "it", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'it -> they':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['IT'], "they", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'them -> it':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['THEM'], "it", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'it -> them':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['IT'], "them", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["he -> it", "it -> he"]:
-                            inserted_ids = ["he -> it", "it -> he"].index(tok_error_type)
-                            inserted_l = ["it", "he"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["him -> it", "it -> him"]:
-                            inserted_ids = ["him -> it", "it -> him"].index(tok_error_type)
-                            inserted_l = ["it", "him"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["she -> it", "it -> she"]:
-                            inserted_ids = ["she -> it", "it -> she"].index(tok_error_type)
-                            inserted_l = ["it", "she"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["her -> it", "it -> her"]:
-                            inserted_ids = ["her -> it", "it -> her"].index(tok_error_type)
-                            inserted_l = ["it", "her"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["they -> he", "they -> she", "heshe -> they"]:
-                            inserted_ids = ["they -> he", "they -> she", "heshe -> they"].index(tok_error_type)
-                            inserted_l = ["he", "she", "they"]
-                            inserted_char = inserted_l[inserted_ids]
-                            if inserted_ids in [0, 1]:
-                                inserted_l = ["they"]
-                            else:
-                                inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'while -> when':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['WHILE'], "when", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'when -> while':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['WHEN'], "while", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'quantity_pron -> some':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['ANY', 'EVERY'], "some", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'quantity_pron -> any':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOME', 'EVERY'], "any", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'quantity_pron -> every':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOME', 'ANY'], "every", word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type == 'place_pron -> somewhere':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['ANYWHERE', 'EVERYWHERE'], "somewhere", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'place_pron -> anywhere':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOMEWHERE', 'EVERYWHERE'], "anywhere", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'place_pron -> everywhere':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOMEWHERE', 'ANYWHERE'], "everywhere", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'thing_pron -> something':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['ANYTHING', 'EVERYTHING'], "something", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'thing_pron -> anything':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOMETHING', 'EVERYTHING'], "anything", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type == 'thing_pron -> everything':
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(['SOMETHING', 'ANYTHING'], "everything", word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type in ['person_pron -> somebody', 'person_pron -> anybody',
-                                                'person_pron -> everybody']:
-                            inserted_ids = ['person_pron -> somebody', 'person_pron -> anybody',
-                                            'person_pron -> everybody'].index(tok_error_type)
-                            inserted_l = ["somebody", "anybody", "everybody"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
-                        elif tok_error_type in ['person_one -> someone', 'person_one -> anyone',
-                                                'person_one -> everyone']:
-                            inserted_ids = ['person_one -> someone', 'person_one -> anyone', 'person_one -> everyone'].\
-                                index(tok_error_type)
-                            inserted_l = ["someone", "anyone", "everyone"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
-                                                      tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'how_pron -> somehow':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['ANYHOW'], "somehow", word, correction_dict,
                                                       tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
+                                                      positional_symbols, word_correct, tokens, initial_position)
                         elif tok_error_type == 'how_pron -> anyhow':
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['SOMEHOW'], "anyhow", word, correction_dict,
                                                       tok_place, word_error_prob, correct_text, tok_error_type,
-                                                      positional_symbols, word_correct, tokens)
+                                                      positional_symbols, word_correct, tokens, initial_position)
                         elif tok_error_type in pron_insert_list:
-                            correction_dict, word_correct_full, correct_text, word_full =\
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct =\
                                 self.multiple_insert(pron_insert_list, tok_error_type, inserted_list, word, tok_place,
                                                      word_error_prob, correction_dict, correct_text,
-                                                     positional_symbols, tokens)
+                                                     positional_symbols, tokens, initial_position)
                         elif tok_error_type in prep_insert_list:
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.multiple_insert(prep_insert_list, tok_error_type, inserted_list_prep, word,
                                                      tok_place, word_error_prob, correction_dict, correct_text,
-                                                     positional_symbols, tokens)
-                        elif tok_error_type in verb_insert_list:
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.multiple_insert(verb_insert_list, tok_error_type, inserted_list_verb, word,
-                                                     tok_place, word_error_prob, correction_dict, correct_text,
-                                                     positional_symbols, tokens)
-                        elif tok_error_type in ["count_pron -> one", "count_pron -> ones"]:
-                            inserted_ids = ["count_pron -> one", "count_pron -> ones"].index(tok_error_type)
-                            inserted_l = ["one", "ones"]
+                                                     positional_symbols, tokens, initial_position)
+
+                        # ****** NEW PART *******
+                        elif tok_error_type in ["because -> as", "as -> because"]:
+                            inserted_ids = ["because -> as", "as -> because"].index(tok_error_type)
+                            inserted_l = ["as", "because"]
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["poss_pron -> ones", "poss_pron -> one's"]:
-                            inserted_ids = ["poss_pron -> ones", "poss_pron -> one's"].index(tok_error_type)
-                            inserted_l = ["one", "one's"]
+                                                      word_correct, tokens, initial_position)
+
+                        elif tok_error_type in ["production -> product", "product -> production"]:
+                            inserted_ids = ["production -> product", "product -> production"].index(tok_error_type)
+                            if self.s_search.search(word) is not None:
+                                inserted_l = ["products", "productions"]
+                            else:
+                                inserted_l = ["product", "production"]
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["count_pron -> other", "count_pron -> others"]:
-                            inserted_ids = ["count_pron -> other", "count_pron -> others"].index(tok_error_type)
-                            inserted_l = ["other", "others"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
-                        elif tok_error_type in ["pron -> other", "pron -> another", "pron -> different",
-                                                "pron -> various"]:
-                            inserted_ids = ["pron -> other", "pron -> another", "pron -> different", "pron -> various"]\
-                                .index(tok_error_type)
-                            inserted_l = ["other", "anothers", "different", "various"]
-                            inserted_char = inserted_l[inserted_ids]
-                            inserted_l.pop(inserted_ids)
-                            inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens)
+                                                      word_error_prob, correct_text, tok_error_type,
+                                                      positional_symbols, word_correct, tokens, initial_position)
+
+                        # elif tok_error_type in ["count_pron -> other", "count_pron -> others"]:
+                        #     inserted_ids = ["count_pron -> other", "count_pron -> others"].index(tok_error_type)
+                        #     inserted_l = ["other", "others"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["pron -> other", "pron -> another", "pron -> different",
+                        #                         "pron -> various"]:
+                        #     inserted_ids = ["pron -> other", "pron -> another", "pron -> different", "pron -> various"]\
+                        #         .index(tok_error_type)
+                        #     inserted_l = ["other", "anothers", "different", "various"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
                         # elif tok_error_type in ["possibility -> may", "possibility -> might", "possibility -> can",
                         #                         "possibility -> could"]:
                         #     inserted_ids = ["possibility -> may", "possibility -> might", "possibility -> can",
@@ -1134,85 +883,95 @@ class ProcessOutput:
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["would -> will", "will -> would"]:
                         #     inserted_ids = ["would -> will", "will -> would"].index(tok_error_type)
                         #     inserted_l = ["will", "would"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "yet -> already":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['YET'], "already", word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['YET'], "already", word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["poss_pron -> my", "poss_pron -> mine"]:
                         #     inserted_ids = ["poss_pron -> my", "poss_pron -> mine"].index(tok_error_type)
                         #     inserted_l = ["my", "mine"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["poss_pron -> your", "poss_pron -> yours"]:
                         #     inserted_ids = ["poss_pron -> your", "poss_pron -> yours"].index(tok_error_type)
                         #     inserted_l = ["your", "yours"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["poss_pron -> her", "poss_pron -> hers"]:
                         #     inserted_ids = ["poss_pron -> her", "poss_pron -> hers"].index(tok_error_type)
                         #     inserted_l = ["her", "hers"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["poss_pron -> their", "poss_pron -> theirs"]:
                         #     inserted_ids = ["poss_pron -> their", "poss_pron -> theirs"].index(tok_error_type)
                         #     inserted_l = ["their", "theirs"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> I", "self -> me", "self -> myself"]:
                         #     inserted_ids = ["self -> I", "self -> me", "self -> myself"].index(tok_error_type)
                         #     inserted_l = ["I", "me", "myself"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> he", "self -> him", "self -> himself"]:
                         #     inserted_ids = ["self -> he", "self -> him", "self -> himself"].index(tok_error_type)
                         #     inserted_l = ["he", "him", "himself"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> she", "self -> her", "self -> herself"]:
                         #     inserted_ids = ["self -> she", "self -> her", "self -> herself"].index(tok_error_type)
                         #     inserted_l = ["she", "her", "herself"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> you", "self -> yourself", "self -> yourselves"]:
                         #     inserted_ids = ["self -> you", "self -> yourself", "self -> yourselves"].\
                         #         index(tok_error_type)
@@ -1220,9 +979,10 @@ class ProcessOutput:
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> we", "self -> us", "self -> ourself", "self -> ourselves"]:
                         #     inserted_ids = ["self -> we", "self -> us", "self -> ourself", "self -> ourselves"].\
                         #         index(tok_error_type)
@@ -1230,50 +990,54 @@ class ProcessOutput:
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> they", "self -> them", "self -> themselves"]:
                         #     inserted_ids = ["self -> they", "self -> them", "self -> themselves"].index(tok_error_type)
                         #     inserted_l = ["they", "them", "themselves"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> it", "self -> itself"]:
                         #     inserted_ids = ["self -> it", "self -> itself"].index(tok_error_type)
                         #     inserted_l = ["it", "itself"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["self -> one", "self -> oneself"]:
                         #     inserted_ids = ["self -> one", "self -> oneself"].index(tok_error_type)
                         #     inserted_l = ["one", "oneself"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "apos -> s'":
                         #     apostrof_search = re.compile("'s", re.IGNORECASE)
                         #     word_correct = apostrof_search.sub("s'", word)
                         #     correct_text = correct_text.replace(word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols,
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(word)]
                         # elif tok_error_type == "apos -> 's":
                         #     apostrof_search = re.compile("s'", re.IGNORECASE)
                         #     word_correct = apostrof_search.sub("'s", word)
                         #     correct_text = correct_text.replace(word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols,
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(word)]
                         # elif tok_error_type in ["apos -> simple", "simple -> apos"]:
                         #     apostrof_search = re.compile("('s)|(s')", re.IGNORECASE)
                         #     inserted_ids = ["apos -> simple", "simple -> apos"].index(tok_error_type)
@@ -1287,17 +1051,18 @@ class ProcessOutput:
                         #     correct_text = correct_text.replace(word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols,
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(word)]
                         # elif tok_error_type in ["because of -> due to", "due to -> because of"]:
                         #     inserted_ids = ["because of -> due to", "due to -> because of"].index(tok_error_type)
                         #     inserted_l = ["because of", "due to"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word +
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word +
                         #                                             tokens[tok_place + 1], correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "in order to -> to":
                         #     if word.isupper():
                         #         word_correct = "TO"
@@ -1313,11 +1078,11 @@ class ProcessOutput:
                         #         correct_text = correct_text.replace("in order to", word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols - 1 -
-                        #                                   len(tokens[tok_place - 1].encode("utf8")),
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(tokens[tok_place - 1]),
+                        #                                   len(word)]
                         # elif tok_error_type == "past -> did":
-                        #     inserted_ids = verb_past.index(word.lower())
-                        #     word_correct = verb_present[inserted_ids]
+                        #     inserted_ids = self.verb_past.index(word.lower())
+                        #     word_correct = self.verb_present[inserted_ids]
                         #     if word.isupper():
                         #         word_correct = word_correct.upper()
                         #     elif word.istitle():
@@ -1325,10 +1090,10 @@ class ProcessOutput:
                         #     word_correct = self.upper_or_lower(word_correct, tok_place, 'did')
                         #     correct_text = correct_text.replace(word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                   tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                   tok_error_type, positional_symbols, len(word)]
                         # elif tok_error_type == "past -> v3":
-                        #     inserted_ids = verb_present.index(word.lower())
-                        #     word_correct = verb_past[inserted_ids]
+                        #     inserted_ids = self.verb_present.index(word.lower())
+                        #     word_correct = self.verb_past[inserted_ids]
                         #     if word.isupper():
                         #         word_correct = word_correct.upper()
                         #         correct_text = correct_text.replace('DID' + word, word_correct)
@@ -1337,74 +1102,82 @@ class ProcessOutput:
                         #         correct_text = correct_text.replace('did' + word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols - 1 -
-                        #                                   len(tokens[tok_place - 1].encode("utf8")),
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(tokens[tok_place - 1]),
+                        #                                   len(word)]
                         # elif tok_error_type in ["rather -> more", "more -> rather"]:
                         #     inserted_ids = ["rather -> more", "more -> rather"].index(tok_error_type)
                         #     inserted_l = ["rather", "more"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "unnec -> not nec":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['UNNECESSARY'], "not necessary", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['UNNECESSARY'], "not necessary", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["were -> was", "was -> were"]:
                         #     inserted_ids = ["were -> was", "was -> were"].index(tok_error_type)
                         #     inserted_l = ["was", "were"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["are -> is", "is -> are"]:
                         #     inserted_ids = ["are -> is", "is -> are"].index(tok_error_type)
                         #     inserted_l = ["is", "are"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["have -> has", "has -> have"]:
                         #     inserted_ids = ["have -> has", "has -> have"].index(tok_error_type)
                         #     inserted_l = ["has", "have"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["do -> does", "does -> do"]:
                         #     inserted_ids = ["do -> does", "does -> do"].index(tok_error_type)
                         #     inserted_l = ["does", "do"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["litter -> liter", "litters -> liters"]:
-                        #     if s_search.search(word) is not None:
+                        #     if self.s_search.search(word) is not None:
                         #         mistaken = ['LITTERS', "liters"]
                         #     else:
                         #         mistaken = ['LITTER', "liter"]
-                        #         correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple([mistaken[0]], mistaken[1], word,
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple([mistaken[0]], mistaken[1], word,
                         #                                                 correction_dict, tok_place, word_error_prob,
                         #                                                 correct_text, tok_error_type,
                         #                                                 positional_symbols)
                         # elif tok_error_type == "universe -> universal":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['UNIVERSE'], "universal", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['UNIVERSE'], "universal", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "helpful -> helping":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['HELPFUL'], "helping", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['HELPFUL'], "helping", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["interesting -> interested", "interested -> interesting"]:
                         #     inserted_ids = ["interesting -> interested", "interested -> interesting"].\
                         #         index(tok_error_type)
@@ -1412,108 +1185,122 @@ class ProcessOutput:
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["creating -> creation", "creation -> creating"]:
                         #     inserted_ids = ["creating -> creation", "creation -> creating"].index(tok_error_type)
                         #     inserted_l = ["creation", "creating"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
-                        # elif tok_error_type in ["existence -> existant", "existant -> existence"]:
-                        #     inserted_ids = ["existence -> existant", "existant -> existence"].index(tok_error_type)
-                        #     inserted_l = ["existant", "existence"]
-                        #     inserted_char = inserted_l[inserted_ids]
-                        #     inserted_l.pop(inserted_ids)
-                        #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
-                        #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
+
+                        elif tok_error_type == "existent -> existence":
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(["EXISTANT"], "existence",
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type in ["existence -> existent"]:
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(["EXISTENCE"], "existante",
+                                                                    word, correction_dict, tok_place, word_error_prob,
+                                                                    correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
                         # elif tok_error_type == "nearby -> near":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['NEARBY'], "near", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['NEARBY'], "near", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["weigh -> weight", "weight -> weigh"]:
                         #     inserted_ids = ["weighs -> weight", "weights -> weigh"].index(tok_error_type)
-                        #     if s_search.search(word) is not None:
+                        #     if self.s_search.search(word) is not None:
                         #         inserted_l = ["weights", "weighs"]
                         #     else:
                         #         inserted_l = ["weight", "weigh"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["separate -> divide", "divide -> separate"]:
                         #     inserted_ids = ["separate -> divide", "divide -> separate"].index(tok_error_type)
-                        #     if ed_search.search(word) is not None:
+                        #     if self.ed_search.search(word) is not None:
                         #         inserted_l = ["divided", "separated"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["dividing", "separating"]
                         #     else:
                         #         inserted_l = ["divide", "separate"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["cross-cult -> intercult", "intercult -> cross-cult"]:
-                        #     cross_search = re.compile(r"\bcross-\w+", re.IGNORECASE)
+                        #     crosself.s_search = re.compile(r"\bcross-\w+", re.IGNORECASE)
                         #     inter_search = re.compile(r"\binter\w+", re.IGNORECASE)
-                        #     if cross_search.search(word) is not None:
-                        #         word_correct = cross_search.sub("inter", word)
+                        #     if crosself.s_search.search(word) is not None:
+                        #         word_correct = crosself.s_search.sub("inter", word)
                         #     else:
                         #         word_correct = inter_search.sub("cross-", word)
                         #     correct_text = correct_text.replace(word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                   tok_error_type, positional_symbols,
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(word)]
                         # elif tok_error_type == "education -> medication":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['EDUCATION'], "medication", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['EDUCATION'], "medication", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["large -> big", "big -> large"]:
                         #     inserted_ids = ["large -> big", "big -> large"].index(tok_error_type)
                         #     inserted_l = ["big", "large"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["small -> little", "little -> small"]:
                         #     inserted_ids = ["small -> little", "little -> small"].index(tok_error_type)
                         #     inserted_l = ["little", "small"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["ofoff -> of", "ofoff -> off"]:
                         #     inserted_ids = ["ofoff -> of", "ofoff -> off"].index(tok_error_type)
                         #     inserted_l = ["of", "off"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["outour -> out", "outour -> our"]:
                         #     inserted_ids = ["outour -> out", "outour -> our"].index(tok_error_type)
                         #     inserted_l = ["out", "our"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["in demand -> requested", "requested -> in demand"]:
                         #     inserted_ids = ["in demand -> requested", "requested -> in demand"].index(tok_error_type)
                         #     inserted_l = ["requested", "in demand"]
@@ -1521,28 +1308,29 @@ class ProcessOutput:
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
                         #     if inserted_ids == 0:
-                        #         correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                                 tokens[tok_place - 1] + word, correction_dict,
                         #                                                 tok_place, word_error_prob, correct_text,
                         #                                                 tok_error_type, positional_symbols - 1 -
-                        #                                                 len(tokens[tok_place - 1].encode("utf8")))
+                        #                                                 len(tokens[tok_place - 1]))
                         #     else:
-                        #         correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word,
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word,
                         #                                                 correction_dict, tok_place, word_error_prob,
                         #                                                 correct_text, tok_error_type,
                         #                                                 positional_symbols)
                         # elif tok_error_type in ["product -> production", "production -> product"]:
                         #     inserted_ids = ["product -> production", "production -> product"].index(tok_error_type)
-                        #     if s_search.search(word) is not None:
+                        #     if self.s_search.search(word) is not None:
                         #         inserted_l = ["productions", "products"]
                         #     else:
                         #         inserted_l = ["production", "product"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["ed -> addict", "ed -> addicts", "ed -> addicted"]:
                         #     inserted_ids = ["ed -> addict", "ed -> addicts", "ed -> addicted"].index(tok_error_type)
                         #     inserted_l = ["addict", "addicts", "addicted"]
@@ -1553,9 +1341,10 @@ class ProcessOutput:
                         #     else:
                         #         inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["cial -> benefit", "cial -> benefits", "cial -> benefited",
                         #                         "cial -> beneficial"]:
                         #     inserted_ids = ["cial -> benefit", "cial -> benefits", "cial -> benefited",
@@ -1569,9 +1358,10 @@ class ProcessOutput:
                         #     else:
                         #         inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["able -> admire", "able -> admired", "able -> admires",
                         #                         "able -> admirable"]:
                         #     inserted_ids = ["able -> admire", "able -> admired", "able -> admires",
@@ -1585,9 +1375,10 @@ class ProcessOutput:
                         #     else:
                         #         inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char,
                         #                                             word, correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["ent -> depend", "ent -> depended", "ent -> depends",
                         #                         "ent -> dependent"]:
                         #     inserted_ids = ["ent -> depend", "ent -> depended", "ent -> depends", "ent -> dependent"].\
@@ -1601,107 +1392,116 @@ class ProcessOutput:
                         #     else:
                         #         inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "dependent_on -> addicted_to":
                         #     correct_text = correct_text.replace("DEPENDENT ON", "ADDICTED TO").\
                         #         replace("Dependent on", "Addicted to").replace("dependent on", "addicted to")
                         #     correction_dict[tok_place] = [word + "->" + "addicted to", str(word_error_prob),
                         #                                   tok_error_type, positional_symbols,
-                        #                                   len(word.encode("utf8"))]
+                        #                                   len(word)]
                         # elif tok_error_type in ["sayings -> say", "sayings -> tell", "sayings -> talk"]:
                         #     inserted_ids = ["sayings -> say", "sayings -> tell", "sayings -> talk"].index(tok_error_type)
-                        #     if d_search.search(word) is not None:
+                        #     if self.d_search.search(word) is not None:
                         #         inserted_l = ["said", "told", "talked"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["saying", "telling", "talking"]
                         #     else:
                         #         inserted_l = ["say", "tell", "talk"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["learnings -> learn", "learnings -> study", "learnings -> teach"]:
                         #     inserted_ids = ["learnings -> learn", "learnings -> study", "learnings -> teach"].\
                         #         index(tok_error_type)
-                        #     if s_search.search(word) is not None:
+                        #     if self.s_search.search(word) is not None:
                         #         inserted_l = ["learns", "studies", "teaches"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["learning", "studying", "teaching"]
                         #     else:
                         #         inserted_l = ["learn", "study", "teach"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["main -> major", "major -> main"]:
                         #     inserted_ids = ["main -> major", "major -> main"].index(tok_error_type)
                         #     inserted_l = ["major", "main"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["genetic -> genetical", "genetical -> genetic"]:
                         #     inserted_ids = ["genetic -> genetical", "genetical -> genetic"].index(tok_error_type)
                         #     inserted_l = ["genetical", "genetic"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["just -> only", "only -> just"]:
                         #     inserted_ids = ["just -> only", "only -> just"].index(tok_error_type)
                         #     inserted_l = ["only", "just"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["all -> all of", "all of -> all"]:
                         #     inserted_ids = ["all -> all of", "all of -> all"].index(tok_error_type)
                         #     if inserted_ids == 0:
-                        #         correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(["ALL"], "all of", word, correction_dict,
+                        #         correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(["ALL"], "all of", word, correction_dict,
                         #                                                 tok_place, word_error_prob,
-                        #                                                 correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                                 correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         #     else:
                         #         correct_text = correct_text.replace("ALL OF", "ALL").replace("All of", "All").\
                         #             replace("all of", "all")
                         #         correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
                         #                                       tok_error_type, positional_symbols,
-                        #                                       len(word.encode("utf8")) + 1 +
-                        #                                       len(tokens[tok_place+1].encode("utf8"))]
+                        #                                       len(word) + 1 +
+                        #                                       len(tokens[tok_place+1])]
                         # elif tok_error_type in ["transmit -> infect", "infect -> transmit"]:
                         #     inserted_ids = ["transmit -> infect", "infect -> transmit"].index(tok_error_type)
-                        #     if ed_search.search(word) is not None:
+                        #     if self.ed_search.search(word) is not None:
                         #         inserted_l = ["infected", "transmitted"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["infecting", "transmitting"]
                         #     else:
                         #         inserted_l =["infect", "transmit"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["-> ongoing", "-> continuing"]:
                         #     inserted_ids = ["-> ongoing", "-> continuing"].index(tok_error_type)
                         #     inserted_l = ["ongoing", "continuing"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["continuous -> continuing", "continuing -> continuous"]:
                         #     inserted_ids = ["continuous -> continuing", "continuing -> continuous"].\
                         #         index(tok_error_type)
@@ -1709,56 +1509,60 @@ class ProcessOutput:
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["droplet -> drop", "drop -> droplet"]:
                         #     inserted_ids = ["droplet -> drop", "drop -> droplet"].index(tok_error_type)
-                        #     if s_search.search(word) is not None:
+                        #     if self.s_search.search(word) is not None:
                         #         inserted_l = ["drops", "droplets"]
                         #     else:
                         #         inserted_l = ["drop", "droplet"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["maintain -> observe", "observe -> maintain"]:
                         #     inserted_ids = ["maintain -> observe", "observe -> maintain"].index(tok_error_type)
-                        #     if ed_search.search(word) is not None:
+                        #     if self.ed_search.search(word) is not None:
                         #         inserted_l = ["observed", "maintained"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["observing", "maintaining"]
-                        #     elif s_search.search(word) is not None:
+                        #     elif self.s_search.search(word) is not None:
                         #         inserted_l = ["observes", "maintains"]
                         #     else:
                         #         inserted_l = ["observe", "maintain"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["serious -> earnest", "earnest -> serious"]:
                         #     inserted_ids = ["serious -> earnest", "earnest -> serious"].index(tok_error_type)
-                        #     ness_search = re.compile(r"\w+nest\b", re.IGNORECASE)
-                        #     if ness_search.search(word) is not None:
+                        #     nesself.s_search = re.compile(r"\w+ness\b", re.IGNORECASE)
+                        #     if nesself.s_search.search(word) is not None:
                         #         inserted_l = ["earnestness", "seriousness"]
                         #     else:
                         #         inserted_l = ["earnest", "serious"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["impose/adopt -> provide", "provide -> impose", "provide -> adopt"]:
                         #     inserted_ids = ["impose/adopt -> provide", "provide -> impose", "provide -> adopt"].\
                         #         index(tok_error_type)
-                        #     if ed_search.search(word) is not None:
+                        #     if self.ed_search.search(word) is not None:
                         #         inserted_l = ["provided", "imposed", "adopted"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["providing", "imposing", "adopting"]
                         #     else:
                         #         inserted_l = ["provide", "impose", "adopt"]
@@ -1770,38 +1574,42 @@ class ProcessOutput:
                         #         inserted_l.pop(inserted_ids)
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "else -> ales":
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(['ELSE'], "ales", word,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(['ELSE'], "ales", word,
                         #                                             correction_dict, tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["eliminate -> defeat", "defeat -> eliminatе"]:
                         #     inserted_ids = ["eliminate -> defeat", "defeat -> eliminatе"].index(tok_error_type)
-                        #     if ed_search.search(word) is not None:
+                        #     if self.ed_search.search(word) is not None:
                         #         inserted_l =["defeated", "eliminated"]
-                        #     elif ing_search.search(word) is not None:
+                        #     elif self.ing_search.search(word) is not None:
                         #         inserted_l = ["defeating", "eliminating"]
-                        #     elif s_search.search(word) is not None:
+                        #     elif self.s_search.search(word) is not None:
                         #         inserted_l = ["defeats", "eliminates"]
                         #     else:
                         #         inserted_l = ["defeat", "eliminate"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob, correct_text,
-                        #                                             tok_error_type, positional_symbols, word_correct)
+                        #                                             tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type in ["right -> true", "true -> right"]:
                         #     inserted_ids = ["right -> true", "true -> right"].index(tok_error_type)
                         #     inserted_l = ["true", "right"]
                         #     inserted_char = inserted_l[inserted_ids]
                         #     inserted_l.pop(inserted_ids)
                         #     inserted_l = [elem.upper() for elem in inserted_l]
-                        #     correction_dict, word_correct_full, correct_text, word_full = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
                         #                                             tok_place, word_error_prob,
-                        #                                             correct_text, tok_error_type, positional_symbols, word_correct)
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                                                      # word_correct, tokens, initial_position)
                         # elif tok_error_type == "comparative -> most":
                         #     word_correct = lemmatizer.lemmatize(word, self.get_wordnet_pos(word))
                         #     if word.isupper():
@@ -1809,7 +1617,7 @@ class ProcessOutput:
                         #     else:
                         #         correct_text = correct_text.replace(word, "most" + word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                   tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                   tok_error_type, positional_symbols, len(word)]
                         # elif tok_error_type == "comparative -> more":
                         #     word_correct = lemmatizer.lemmatize(word, self.get_wordnet_pos(word))
                         #     if word.isupper():
@@ -1817,7 +1625,7 @@ class ProcessOutput:
                         #     else:
                         #         correct_text = correct_text.replace(word, "more" + word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                   tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                   tok_error_type, positional_symbols, len(word)]
                         # elif tok_error_type == "comparative -> least":
                         #     word_correct = lemmatizer.lemmatize(word, self.get_wordnet_pos(word))
                         #     if word.isupper():
@@ -1825,7 +1633,7 @@ class ProcessOutput:
                         #     else:
                         #         correct_text = correct_text.replace(word, "least" + word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                   tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                   tok_error_type, positional_symbols, len(word)]
                         # elif tok_error_type == "comparative -> less":
                         #     word_correct = lemmatizer.lemmatize(word, self.get_wordnet_pos(word))
                         #     if word.isupper():
@@ -1833,7 +1641,7 @@ class ProcessOutput:
                         #     else:
                         #         correct_text = correct_text.replace(word, "less" + word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                   tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                   tok_error_type, positional_symbols, len(word)]
                         # elif tok_error_type in ["most/more_comparative", "least/less_comparative"]:
                         #     prep = tokens[tok_place-1]  # possibly most or more
                         #     word_correct = self.choose_comparative_form(word.lower(), prep.lower())
@@ -1842,78 +1650,348 @@ class ProcessOutput:
                         #     else:
                         #         correct_text = correct_text.replace(prep + word, word_correct)
                         #     correction_dict[tok_place] = [word + "->" + word_correct, str(word_error_prob),
-                        #                                  tok_error_type, positional_symbols, len(word.encode("utf8"))]
+                        #                                  tok_error_type, positional_symbols, len(word)]
+                        # elif tok_error_type == "pres -> pres cont":
+                        #     if word.lower() in self.verb_single:
+                        #         inserted_ids = self.verb_single.index(word.lower())
+                        #         prep = 'is'
+                        #     elif word.lower() in self.verb_plural:
+                        #         inserted_ids = self.verb_plural.index(word.lower())
+                        #         prep = 'are'
+                        #     word_correct = self.verb_continuous[inserted_ids]
+                        #     if word.isupper():
+                        #         word_correct = word_correct.upper()
+                        #     elif word.istitle():
+                        #         word_correct = word_correct.title()
+                        #     word_correct = self.upper_or_lower(word_correct, tok_place, prep)
+                        #     correction_dict, correct_text, word_full, word_correct_full = \
+                        #         self.correct_replace(word, word_correct, correct_text, correction_dict,
+                        #                              positional_symbols, word_error_prob, tok_error_type,
+                        #                              tok_place, tokens, initial_position)
+                        # elif tok_error_type == "pres cont -> pres":
+                        #     prep = tokens[tok_place - 1]
+                        #     inserted_ids = self.verb_continuous.index(word.lower())
+                        #     if prep.lower() == 'is':
+                        #         word_correct = self.verb_single[inserted_ids]
+                        #     elif prep.lower() == 'are':
+                        #         word_correct = self.verb_plural[inserted_ids]
+                        #     if word.isupper():
+                        #         word_correct = word_correct.upper()
+                        #     elif word.istitle():
+                        #         word_correct = word_correct.title()
+                        #     correction_dict, correct_text, word_full, word_correct_full = \
+                        #         self.correct_replace(prep+word, word_correct, correct_text, correction_dict,
+                        #                              positional_symbols, word_error_prob, tok_error_type,
+                        #                              tok_place, tokens, initial_position)
+                        # elif tok_error_type in ["they -> the",  "the -> they"]:
+                        #     inserted_ids = ["they -> the",  "the -> they"].index(tok_error_type)
+                        #     inserted_l = ["the", "they"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'that -> but':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THAT'], "but", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thisthese -> this':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THESE'], "this", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thisthese -> these':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THIS'], "these", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+
+                        # elif tok_error_type == 'thatthose -> that':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THOSE'], "that", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thatthose -> those':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THAT'], "those", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity_pron -> some':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['ANY', 'EVERY'], "some", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity_pron -> any':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOME', 'EVERY'], "any", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'quantity_pron -> every':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOME', 'ANY'], "every", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'place_pron -> somewhere':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['ANYWHERE', 'EVERYWHERE'], "somewhere", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'place_pron -> anywhere':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOMEWHERE', 'EVERYWHERE'], "anywhere", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'place_pron -> everywhere':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOMEWHERE', 'ANYWHERE'], "everywhere", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thing_pron -> something':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['ANYTHING', 'EVERYTHING'], "something", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thing_pron -> anything':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOMETHING', 'EVERYTHING'], "anything", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'thing_pron -> everything':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['SOMETHING', 'ANYTHING'], "everything", word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type in ['person_pron -> somebody', 'person_pron -> anybody',
+                        #                         'person_pron -> everybody']:
+                        #     inserted_ids = ['person_pron -> somebody', 'person_pron -> anybody',
+                        #                     'person_pron -> everybody'].index(tok_error_type)
+                        #     inserted_l = ["somebody", "anybody", "everybody"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type in ['person_one -> someone', 'person_one -> anyone',
+                        #                         'person_one -> everyone']:
+                        #     inserted_ids = ['person_one -> someone', 'person_one -> anyone', 'person_one -> everyone'].\
+                        #         index(tok_error_type)
+                        #     inserted_l = ["someone", "anyone", "everyone"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict,
+                        #                               tok_place, word_error_prob, correct_text, tok_error_type,
+                        #                               positional_symbols, word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'this -> it':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THIS'], "it", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'it -> this':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['IT'], "this", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'that -> it':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THAT'], "it", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'it -> that':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['IT'], "that", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'they -> it':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THEY'], "it", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'it -> they':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['IT'], "they", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'them -> it':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['THEM'], "it", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type == 'it -> them':
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(['IT'], "them", word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["he -> it", "it -> he"]:
+                        #     inserted_ids = ["he -> it", "it -> he"].index(tok_error_type)
+                        #     inserted_l = ["it", "he"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["him -> it", "it -> him"]:
+                        #     inserted_ids = ["him -> it", "it -> him"].index(tok_error_type)
+                        #     inserted_l = ["it", "him"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["she -> it", "it -> she"]:
+                        #     inserted_ids = ["she -> it", "it -> she"].index(tok_error_type)
+                        #     inserted_l = ["it", "she"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["her -> it", "it -> her"]:
+                        #     inserted_ids = ["her -> it", "it -> her"].index(tok_error_type)
+                        #     inserted_l = ["it", "her"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["they -> he", "they -> she", "heshe -> they"]:
+                        #     inserted_ids = ["they -> he", "they -> she", "heshe -> they"].index(tok_error_type)
+                        #     inserted_l = ["he", "she", "they"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     if inserted_ids in [0, 1]:
+                        #         inserted_l = ["they"]
+                        #     else:
+                        #         inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+
+                        # elif tok_error_type in verb_insert_list:
+                        # correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.multiple_insert(verb_insert_list, tok_error_type, inserted_list_verb, word,
+                        #                              tok_place, word_error_prob, correction_dict, correct_text,
+                        #                              positional_symbols, tokens, initial_position)
+                        # elif tok_error_type in ["count_pron -> one", "count_pron -> ones"]:
+                        #     inserted_ids = ["count_pron -> one", "count_pron -> ones"].index(tok_error_type)
+                        #     inserted_l = ["one", "ones"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["poss_pron -> ones", "poss_pron -> one's"]:
+                        #     inserted_ids = ["poss_pron -> ones", "poss_pron -> one's"].index(tok_error_type)
+                        #     inserted_l = ["one", "one's"]
+                        #     inserted_char = inserted_l[inserted_ids]
+                        #     inserted_l.pop(inserted_ids)
+                        #     inserted_l = [elem.upper() for elem in inserted_l]
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                        #                               word_error_prob, correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
                         if len(correction_dict[tok_place]) == 0:
                             correction_dict.pop(tok_place)
                         if len(word_correct_full) > 0:
                             corrected_words.append(word_correct_full)
                             incorrect_words.append(word_full)
                 word_count = word
-                print(word, positional_symbols)
                 if len(word_correct_full) > 0:
                     word_count = word_correct  # to correctly add position in case of several mistakes
                 s = 0
-                if positional_symbols+len(word_count.encode("utf8")) < len(correct_text):
-                #     print(positional_symbols+len(word_count.encode("utf8"))+s, s)
-                    while correct_text[positional_symbols+len(word_count.encode("utf8"))+s] == ' ':
-                        s += 1
-
+                s_initial = 0
+                if positional_symbols+len(word_count) + s < len(correct_text):
+                    try:
+                        while correct_text[positional_symbols+len(word_count)+s] == ' ':
+                            s += 1
+                            if positional_symbols+len(word_count)+s == len(correct_text):
+                                break
+                        while text_data[0][initial_position+len(word)+s_initial] == ' ':
+                            # print("PAIR INSIDE WHILE", initial_position+len(word)+s_initial,
+                            #       text_data[0][initial_position+len(word)+s_initial], s_)
+                            s_initial += 1
+                            if initial_position+len(word_count)+s_initial == len(text_data[0]):
+                                break
+                    except IndexError:
+                        print(text_data[0], word)
+                        print("mistake")
+                print("PAIR ", initial_position+len(word)+s_initial,
+                      text_data[0][initial_position+len(word)+s_initial], s)
                 if next_tok_place < len(tokens):
-                    print(word_count + ' '*s + tokens[next_tok_place])
                     if correct_text.find(word_count + ' '*s + tokens[next_tok_place]) >= 0:
-                        positional_symbols += len(word_count.encode("utf8")) + s
+                        positional_symbols += len(word_count) + s
+                        initial_position += len(word) + s_initial
                     else:
-                        positional_symbols += len(word_count.encode("utf8"))
+                        positional_symbols += len(word_count)
+                        initial_position += len(word)
                 else:
-                    positional_symbols += len(word_count.encode("utf8"))
+                    positional_symbols += len(word_count)
+                    initial_position += len(word)
 
                 # if tok_place + 1 < len(tokens):
                 #     if tokens[tok_place + 1] in ["-", "'", ".", ",", ":", ";", "?", "!"]:
                 #         if word not in ["[", "^", "$", ".", "|", "?", "*", "+", "(", ")", "\n"]:
                 #             try:
                 #                 if re.search((word + tokens[tok_place + 1]), correct_text) is not None:
-                #                     positional_symbols += len(word.encode("utf8"))
+                #                     positional_symbols += len(word)
                 #                 else:
-                #                     positional_symbols += len(word.encode("utf8")) + 1
+                #                     positional_symbols += len(word) + 1
                 #             except Exception:
-                #                 positional_symbols += len(word.encode("utf8")) + 1
+                #                 positional_symbols += len(word) + 1
                 #         else:
                 #             char = '\\' + word
                 #             try:
                 #                 if re.search((char + tokens[tok_place + 1]), correct_text) is not None:
-                #                     positional_symbols += len(word.encode("utf8"))
+                #                     positional_symbols += len(word)
                 #                 else:
-                #                     positional_symbols += len(word.encode("utf8")) + 1
+                #                     positional_symbols += len(word) + 1
                 #             except Exception:
-                #                 positional_symbols += len(word.encode("utf8")) + 1
+                #                 positional_symbols += len(word) + 1
                 #     elif tokens[tok_place + 1] in [")", "}", "]"]:
-                #         positional_symbols += len(word.encode("utf8"))
+                #         positional_symbols += len(word)
                 #     elif word in [".", "?", "!"]:
-                #         positional_symbols += len(word.encode("utf8"))
+                #         positional_symbols += len(word)
                 #     elif word in [",", ":", ";"]:
-                #         positional_symbols += len(word.encode("utf8")) + 1
+                #         positional_symbols += len(word) + 1
                 #     elif word in ["-", "'"]:
                 #         if tokens[tok_place + 1] not in ["[", "^", "$", ".", "|", "?", "*", "+", "(", ")", "\n"]:
                 #             try:
                 #                 if re.search(word + tokens[tok_place + 1], correct_text) is not None:
-                #                     positional_symbols += len(word.encode("utf8"))
+                #                     positional_symbols += len(word)
                 #                 else:
-                #                     positional_symbols += len(word.encode("utf8")) + 1
+                #                     positional_symbols += len(word) + 1
                 #             except Exception:
-                #                 positional_symbols += len(word.encode("utf8")) + 1
+                #                 positional_symbols += len(word) + 1
                 #         else:
                 #             char = '\\' + tokens[tok_place + 1]
                 #             try:
                 #                 if re.search(word + char, correct_text) is not None:
-                #                     positional_symbols += len(word.encode("utf8"))
+                #                     positional_symbols += len(word)
                 #                 else:
-                #                     positional_symbols += len(word.encode("utf8")) + 1
+                #                     positional_symbols += len(word) + 1
                 #             except Exception:
-                #                 positional_symbols += len(word.encode("utf8")) + 1
+                #                 positional_symbols += len(word) + 1
                 #     else:
-                #         positional_symbols += len(word.encode("utf8")) + 1  # +1 for space
+                #         positional_symbols += len(word) + 1  # +1 for space
                 # else:
-                #     positional_symbols += len(word.encode("utf8"))
+                #     positional_symbols += len(word)
                 # print(positional_symbols)
 
         return correct_text, correction_dict, words_error, incorrect_words, corrected_words

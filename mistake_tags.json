@@ -8,8 +8,8 @@
                 "REPLACE_inonatofby_at", "REPLACE_inonatofby_of", "REPLACE_inonatofby_by", "INSERT_more",
                 "REPLACE_toforoffrom_to", "REPLACE_toforoffrom_for", "REPLACE_toforoffrom_of",
                 "REPLACE_toforoffrom_from", "REPLACE_inwithin_in", "REPLACE_inwithin_within", "REPLACE_among",
-                "REPLACE_between", "REPLACE_thatwhichwhowhom_that", "REPLACE_thatwhichwhowhom_which",
-                "REPLACE_thatwhichwhowhom_who", "REPLACE_thatwhichwhowhom_whom", "REPLACE_that_but",
+                "REPLACE_between", "REPLACE_that", "REPLACE_which",
+                "REPLACE_who", "REPLACE_whom", "REPLACE_that_but",
                 "REPLACE_thisthese_this", "REPLACE_thisthese_these", "REPLACE_thatthose_that",
                 "REPLACE_thatthose_those", "REPLACE_there", "REPLACE_where", "REPLACE_this_it", "REPLACE_it_this",
                 "REPLACE_that_it", "REPLACE_it_that", "REPLACE_they_it", "REPLACE_it_they", "REPLACE_them_it",
@@ -63,7 +63,10 @@
                 "REPLACE_impose", "REPLACE_adopt", "REPLACE_else_ales", "REPLACE_defeat", "REPLACE_eliminate",
                 "REPLACE_true", "REPLACE_right", "REPLACE_comparative_most", "REPLACE_comparative_more",
                 "REPLACE_comparative_least", "REPLACE_comparative_less", "REPLACE_most/more_comparative",
-                "REPLACE_least/less_comparative"],
+                "REPLACE_least/less_comparative",
+
+                "REPLACE_as", "REPLACE_because", "REPLACE_product", "REPLACE_production"
+  ],
   "error_types": ["prep -> a/an",  "prep -> the", "delete prep", "insert prep a/an", "insert prep the", "plural -> single",
         "single -> plural", "plural verb -> single", "single verb -> plural", "pres -> pres cont", "pres cont -> pres",
         "then -> than", "than -> then", "bed -> bad", "bad -> bed",  "live -> life", "life -> live", "head -> had",
@@ -122,5 +125,7 @@
         "maintain -> observe", "observe -> maintain", "serious -> earnest", "earnest -> serious",
         "impose/adopt -> provide", "provide -> impose", "provide -> adopt", "else -> ales", "eliminate -> defeat",
         "defeat -> eliminatе", "right -> true", "true -> right", "comparative -> most", "comparative -> most",
-        "comparative -> least", "comparative -> less", "most/more_comparative", "least/less_comparative"]
+        "comparative -> least", "comparative -> less", "most/more_comparative", "least/less_comparative",
+
+        "because -> as", "as -> because", "production -> product", "product -> production"]
 }

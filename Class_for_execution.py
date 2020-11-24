@@ -1,7 +1,7 @@
 from Class import TestPreprocess, ProcessOutput
-from Model import TsyaModel
+from Model_lexi import TsyaModel
 import json
-from transformers import BertTokenizer, AutoTokenizer
+from transformers import BertTokenizer
 
 
 class OrphoNet:
@@ -55,8 +55,7 @@ class OrphoNet:
 
 
 model = OrphoNet()
-text_data = "I cannot agree with this opinion because the most effective way to see if a student honestly and " \
-            "independently passed exams or tests is to students personal presence."
+text_data = "Others argue that there are no more important things than friends and relatives in existant of each man."
 output = model.execute(text_data, 'Incorrect')
 # model.give_json(output[2], 'model_output.json')
 for out in output:

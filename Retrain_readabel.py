@@ -36,9 +36,48 @@ def write_dataset_to_file(tokens, labels, file):
         for l in range(len(zipped)):
             sentence_tokens = zipped[l][0]
             sentence_labels = zipped[l][1]
+            # print(sentence_tokens, sentence_labels, len(sentence_tokens))
             for k in range(len(sentence_tokens)):
                 f.write(sentence_tokens[k] + '\t' + sentence_labels[k] + '\n')
             f.write('\n')
+
+
+def multiple_tags_correct(labels, word, tok_error_type, correct_text, positional_symbols, word_correct,
+                          mistake_list, word_to_replace, tag_list):
+    inserted_ids = mistake_list.index(tok_error_type)
+    inserted_l = word_to_replace.copy()
+    inserted_char = inserted_l[inserted_ids]
+    inserted_l.pop(inserted_ids)
+    inserted_l = [elem.upper() for elem in inserted_l]
+    for char in inserted_l:
+        if len(inserted_char) > 1:
+            if len(char) > 1:
+                word_correct = word.replace(char, inserted_char.upper()). \
+                    replace(char[0] + char[1:].lower(),
+                            inserted_char[0].upper() + inserted_char[1:]). \
+                    replace(char.lower(), inserted_char)
+            else:
+                word_correct = word.replace(char, inserted_char.upper()). \
+                    replace(char, inserted_char[0].upper() + inserted_char[1:]). \
+                    replace(char.lower(), inserted_char)
+        else:
+            if len(char) > 1:
+                word_correct = word.replace(char, inserted_char.upper()). \
+                    replace(char[0] + char[1:].lower(), inserted_char.upper()). \
+                    replace(char.lower(), inserted_char)
+            else:
+                word_correct = word.replace(char, inserted_char.upper()). \
+                    replace(char[0], inserted_char.upper()). \
+                    replace(char.lower(), inserted_char)
+        if word != word_correct:
+            break
+    replace_text = correct_text[positional_symbols:positional_symbols + len(word.encode("utf8"))
+                                                   + 1].replace(word, word_correct)
+    correct_text = "".join((correct_text[: positional_symbols], replace_text,
+                            correct_text[positional_symbols + len(word.encode("utf8")) + 1:]))
+    ids = word_to_replace.index(word.lower())
+    labels.append(tag_list[ids])
+    return word, word_correct, correct_text, labels
 
 
 def clever_retrain_set(df):
@@ -60,6 +99,7 @@ def clever_retrain_set(df):
                       config_of_model=configs["config_of_model"], multilingual=False)
     all_labels = []
     all_words = []
+    df = df[:300]
     for j, row in tqdm(df.iterrows()):
         replace_sentence = False
         sentence = row.proc_sentence
@@ -169,9 +209,6 @@ def clever_retrain_set(df):
                                         word_correct = word.replace(char, replace_char.upper()). \
                                             replace(char[0], replace_char.upper()). \
                                             replace(char.lower(), replace_char)
-                                # word_correct = word.replace(char, replace_char.upper()). \
-                                #     replace(char[0] + char[1:].lower(), replace_char[0].upper() + replace_char[1:]). \
-                                #     replace(char.lower(), replace_char)
                                 if word != word_correct:
                                     break
                             replace_text = correct_text[positional_symbols:positional_symbols +
@@ -215,8 +252,37 @@ def clever_retrain_set(df):
                                 labels.append("INSERT_the")
                             else:
                                 labels.append("INSERT_a_an")
+                        elif tok_error_type in ['inonatofby -> in', 'inonatofby -> on', 'inonatofby -> at',
+                                                'inonatofby -> of', 'inonatofby -> by']:
+                            word, word_correct, correct_text, labels = \
+                                multiple_tags_correct(labels, word, tok_error_type, correct_text, positional_symbols,
+                                                      word_correct, ['inonatofby -> in', 'inonatofby -> on',
+                                                                     'inonatofby -> at', 'inonatofby -> of',
+                                                                     'inonatofby -> by'],
+                                                      ["in", "on", "at", "of", "by"],
+                                                      ["REPLACE_inonatofby_in", "REPLACE_inonatofby_on",
+                                                       "REPLACE_inonatofby_at", "REPLACE_inonatofby_of"])
+                        elif tok_error_type in ['inwithin -> in', 'inwithin -> within']:
+                            word, word_correct, correct_text, labels =\
+                                multiple_tags_correct(labels, word, tok_error_type, correct_text, positional_symbols,
+                                                      word_correct, ['inwithin -> in', 'inwithin -> within'],
+                                                      ["in", "within"],
+                                                      ["REPLACE_inwithin_within", "REPLACE_inwithin_in"])
+                        elif tok_error_type in ['thatwhichwhowhom -> that', 'thatwhichwhowhom -> which',
+                                                'thatwhichwhowhom -> whom', 'thatwhichwhowhom -> who']:
+                            word, word_correct, correct_text, labels = \
+                                multiple_tags_correct(labels, word, tok_error_type, correct_text, positional_symbols,
+                                                      word_correct, ['thatwhichwhowhom -> that',
+                                                                     'thatwhichwhowhom -> which',
+                                                                     'thatwhichwhowhom -> whom',
+                                                                     'thatwhichwhowhom -> who'],
+                                                      ["that", "which", "whom", "who"],
+                                                      ["REPLACE_that", "REPLACE_which", "REPLACE_who", "REPLACE_whom"])
+                        else:
+                            labels.append('O')
                     else:
                         labels.append('O')
+
                     if len(word_correct) > 0:
                         word = word_correct
                         replace_sentence = True
@@ -232,12 +298,10 @@ def clever_retrain_set(df):
                         word_count = word_correct  # to correctly add position in case of several mistakes
                     s = 0
                     if positional_symbols + len(word_count.encode("utf8")) < len(correct_text):
-                        #     print(positional_symbols+len(word_count.encode("utf8"))+s, s)
                         while correct_text[positional_symbols + len(word_count.encode("utf8")) + s] == ' ':
                             s += 1
 
                     if next_tok_place < len(tokens):
-                        print(word_count + ' ' * s + tokens[next_tok_place])
                         if correct_text.find(word_count + ' ' * s + tokens[next_tok_place]) >= 0:
                             positional_symbols += len(word_count.encode("utf8")) + s
                         else:
@@ -251,7 +315,7 @@ def clever_retrain_set(df):
                 all_labels.append(labels[1:-1])
         except IndexError:
             print("MISTAKEN", sentence)
-    write_dataset_to_file(all_words, all_labels, "retrain_dataset_correct_small.txt")
+    write_dataset_to_file(all_words, all_labels, "retrain_dataset_test.txt")
 
 
 def retrain_model(get_ids=True, retrain=False, suffix='_only_locness'):
@@ -297,8 +361,7 @@ def main():
     # _ = add_sentences_to_retrain(df)
     # retrain_model(get_ids=False, retrain=True, suffix='_only_locness')
 
-
-    df = pd.read_csv("enwiki.csv")
+    df = pd.read_csv("enwiki_small.csv")
     clever_retrain_set(df)
 
 
