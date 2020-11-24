@@ -724,18 +724,22 @@ class ProcessOutput:
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
-                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
-                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens, initial_position)
                             pos = 1
                             word_prev = ''
-                            while '#' in tokens[tok_place-pos]:
-                                word_prev += tokens[tok_place-pos][2:]
+                            while '#' in tokens[tok_place - pos]:
+                                word_prev = tokens[tok_place - pos][2:] + word_prev
                                 pos += 1
-                            word_prev += tokens[tok_place-pos]
-                            word_full = word_prev + ' ' + word_full
-                            word_correct_full = word_prev + ' ' + word_correct_full
+                            word_prev += tokens[tok_place - pos]
+                            s = -1
+                            while text_data[positional_symbols+s] == ' ':
+                                s -= 1
+                            word_with_prev = word_prev + ' '*(-s) + word
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(inserted_l, inserted_char, word_with_prev, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                            word_correct = word_correct[len(word_prev + ' '*(-s)):]
+
                         elif tok_error_type == "insert more":
                             word_correct = self.upper_or_lower(word, tok_place, 'more')
                             correction_dict, correct_text, word_full, word_correct_full = \
