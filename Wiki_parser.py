@@ -79,10 +79,12 @@ def get_answers_in_wiki(model):
     # outputs = [[i, model.execute(line)] for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy()))
     #            if line is not np.nan]
 
-    for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy())):
+    for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy()[:100])):
         if line is not np.nan:
             output = model.execute(line)
             if len(output) > 1 and output[0] == 'Incorrect':
+                print(line)
+                print(output)
                 wikipedia['corrected'].iloc[i] = output[1]
                 wikipedia['error_types'].iloc[i] = output[3]
                 wikipedia['probability'].iloc[i] = str(output[4])
@@ -92,7 +94,7 @@ def get_answers_in_wiki(model):
     #     if len(answer) > 1 and answer[0] == 'Incorrect':
     #         wikipedia['corrected'].iloc[i] = answer[1]
     wikipedia.dropna(subset=['article_uuid', 'proc_sentence', 'corrected'], how='any', inplace=True)
-    wikipedia.to_csv("ruwiki_2018_09_25" + '_answered_fl_2_retrained_2222_with_mistakes' + '.csv', index=False)
+    wikipedia.to_csv("ruwiki_2018_09_25" + '_answered_fl_doubled_sent_500k_201127_0' + '.csv', index=False)
 
 
 def main(get_wiki=True, get_csv_fl_hardsoft_1=False):

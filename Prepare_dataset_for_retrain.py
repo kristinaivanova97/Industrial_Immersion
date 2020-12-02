@@ -3,7 +3,7 @@ import re
 import json
 from transformers import BertTokenizer, AutoTokenizer
 from Model import GetIndices, TsyaModel
-from DataPreprocess import DataPreprocess, to_train_val_test_hdf
+from OldDataPreprocess import DataPreprocess, to_train_val_test_hdf
 from transformers.tokenization_bert import BasicTokenizer
 from tqdm import tqdm
 

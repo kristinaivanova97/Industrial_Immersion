@@ -1,7 +1,7 @@
 import json
 import h5py
 from transformers import BertTokenizer, AutoTokenizer
-from DataPreprocess import DataPreprocess
+from OldDataPreprocess import DataPreprocess
 import random
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)

@@ -59,13 +59,20 @@ class TsyaModel:
             self.weight_path = weight_path
         self.label_list = label_list
         self.label_map = {label: i for i, label in enumerate(self.label_list)}
-        self.model = BertForTokenClassification.from_pretrained(
-                                                    'bert-base-cased',
-                                                    num_labels=len(self.label_list),
-                                                    output_attentions=False,
-                                                    output_hidden_states=False
-                                                            )
-
+        if multilingual:
+            self.model = BertForTokenClassification.from_pretrained(
+                'bert-base-multilingual-cased',
+                num_labels=len(self.label_list),
+                output_attentions=False,
+                output_hidden_states=False
+            )
+        else:
+            self.model = BertForTokenClassification.from_pretrained(
+                'bert-base-cased',
+                num_labels=len(self.label_list),
+                output_attentions=False,
+                output_hidden_states=False
+            )
         if train_from_chk:
             self.model.load_state_dict(torch.load(self.weight_path, map_location=torch.device('cpu')))
 

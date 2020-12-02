@@ -257,7 +257,7 @@ def split_maintain_pairs(data_dir='./new_data/', output_dir='./data/', train_par
 
 
 def main():
-    with open("config_datapreprocess.json") as json_data_file:
+    with open("old_config_datapreprocess.json") as json_data_file:
         configs = json.load(json_data_file)
 
     if not configs['from_rubert']:

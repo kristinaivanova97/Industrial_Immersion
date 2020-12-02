@@ -32,7 +32,7 @@ def main(configs):
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
     if not configs['from_rubert']:
-        tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
+        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
@@ -44,7 +44,7 @@ def main(configs):
     model = TsyaModel(label_list=label_list, weight_path=None, train_from_chk=configs["train_from_chk"],
                       seed_val=configs['seed_val'], tokenizer=tokenizer, from_rubert=configs['from_rubert'],
                       config_of_model=configs['config_of_model'], adam_options=configs['adam_options'],
-                      multilingual=False)
+                      multilingual=True)
 
     Path(configs["weight_path"]).mkdir(parents=True, exist_ok=True)
     number_of_chkp = 0
@@ -65,7 +65,7 @@ def main(configs):
 
 if __name__ == "__main__":
 
-    with open("config_retrain.json") as json_data_file:
+    with open("config_train.json") as json_data_file:
         config = json.load(json_data_file)
 
     main(config)

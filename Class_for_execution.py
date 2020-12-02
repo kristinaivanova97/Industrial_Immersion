@@ -1,4 +1,4 @@
-from Class import TestPreprocess, ProcessOutput
+from Class_rus import TestPreprocess, ProcessOutput
 from Model_lexi import TsyaModel
 import json
 from transformers import BertTokenizer
@@ -11,16 +11,20 @@ class OrphoNet:
             self.configs = json.load(json_data_file)
         with open("test.json") as json_data_file:
             tags = json.load(json_data_file)
+        if self.configs["multilingual"]:
+            tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+        else:
+            tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
 
-        tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
-
-        self.output = ProcessOutput(tokenizer=tokenizer)
+        self.output = ProcessOutput(tokenizer=tokenizer, path_to_tsya_vocab=self.configs["path_to_tsya_vocab"],
+                                    path_to_all_n_nn_words=self.configs["path_to_all_n_nn_words"])
         self.data_processor = TestPreprocess(tokenizer=tokenizer)
         self.model = TsyaModel(weight_path=self.configs['weight_path'] + self.configs['chckp_file'],
                                train_from_chk=self.configs['train_from_chk'],
                                label_list=self.configs['label_list'], seed_val=self.configs["seed_val"],
                                from_rubert=self.configs['from_rubert'], adam_options=self.configs["adam_options"],
-                               tokenizer=tokenizer, config_of_model=self.configs["config_of_model"], multilingual=False)
+                               tokenizer=tokenizer, config_of_model=self.configs["config_of_model"],
+                               multilingual=self.configs["multilingual"])
 
     def execute(self, sentences, default_value='Correct'):
 
@@ -31,7 +35,7 @@ class OrphoNet:
         correct_text, correction_dict, words_errors, incorrect_words, corrected_words = \
             self.output.process_sentence_optimal(
                     predicts, input_ids, nopad, [sentences], probabilities, probabilities_o,
-                    default_value, threshold=0.5, check_in_dict=self.configs["check_in_dict"])
+                    default_value, threshold=0.5)
         if len(correction_dict.keys()) > 0:
             message = "Incorrect"
             return [message, correct_text, correction_dict, words_errors, incorrect_words, corrected_words]
@@ -54,10 +58,10 @@ class OrphoNet:
 # ФМС и будет рассмотрен в установленом законом порядке."
 
 
-model = OrphoNet()
-text_data = "Others argue that there are no more important things than friends and relatives in existant of each man."
-output = model.execute(text_data, 'Incorrect')
-# model.give_json(output[2], 'model_output.json')
-for out in output:
-    print(out)
+# model = OrphoNet()
+# text_data = "Others argue that there are no more important things than friends and relatives in existant of each man."
+# output = model.execute(text_data, 'Incorrect')
+# # model.give_json(output[2], 'model_output.json')
+# for out in output:
+#     print(out)
 
