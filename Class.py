@@ -8,6 +8,7 @@ import json
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
+from transformers.tokenization_bert import BasicTokenizer
 import warnings
 import sys
 
@@ -67,218 +68,44 @@ class TestPreprocess:
 class ProcessOutput:
 
     def __init__(self, tokenizer, configs, root_dir, shift=1):
-        self.root_dir = root_dir
+
         self._tokenizer = tokenizer
         self.shift = shift
-        self.dict_spisok = {}
-        self.dict_spisok_replace = {}
-        self.dict_spisok_insert = {}
         label_list = configs["label_list"]
         if isinstance(label_list, str):
-            if label_list.find('final') != -1:
-                from label_list_with_sgpl_after_finals import label_list
-            elif label_list.find('sgpl') != -1:
-                from label_list_with_sgpl import label_list
-            else:
-                from label_list import label_list
-            self.label_list = label_list
-            # print(self.label_list)
-            self.all_error_names = dict({
-                'REPLACE_a_an': "prep -> a/an",
-                "REPLACE_the": "prep -> the",
-                "INSERT_a_an": "insert prep a/an",
-                "INSERT_the": "insert prep the",
-                "DELETE_prep": "delete prep",
-                "REPLACE_inonatofby_in": "inonatofby -> in",
-                "REPLACE_inonatofby_on": "inonatofby -> on",
-                "REPLACE_inonatofby_at": "inonatofby -> at",
-                "REPLACE_inonatofby_of": "inonatofby -> of",
-                "REPLACE_inonatofby_by": "inonatofby -> by",
-                "REPLACE_that": "thatwhichwhowhom -> that",
-                "REPLACE_which": "thatwhichwhowhom -> which",
-                "REPLACE_who": "thatwhichwhowhom -> who",
-                "REPLACE_whom": "thatwhichwhowhom -> whom",
-                "REPLACE_inwithin_within": "inwithin -> within",
-                "REPLACE_inwithin_in": "inwithin -> in",
-                'REPLACE_toforoffrom_for': "toforoffrom -> for",
-                "REPLACE_toforoffrom_from": "toforoffrom -> from",
-                "REPLACE_toforoffrom_of": "toforoffrom -> of",
-                "REPLACE_toforoffrom_to": "toforoffrom -> to",
-                'REPLACE_plural_single': "plural -> single",
-                'REPLACE_single_plural': "single -> plural",
-                'REPLACE_plural_single_verb': "plural verb -> single",
-                'REPLACE_single_plural_verb': "single verb -> plural",
-                'REPLACE_existence': "existent -> existence",
-                'REPLACE_existent': "existence -> existent"
-            })
-            self.spisok = [
-                ['bad', 'bed'],
-                ['than', 'then'],
-                ['live', 'life'],
-                ['head', 'had'],
-                ['facility', 'appliance'],
-                ['among', 'between'],
-                ['when', 'while'],
-                ['only', 'just'],
-                ['interesting', 'interested'],
-                ['big', 'large'],
-                ['little', 'small'],
-                ['comfortable', 'convenient'],
-                ['there', 'where'],
-                ['will', 'would'],
-                ['weight', 'weigh'],
-                ['weights', 'weighs'],
-                ['differently', 'definitely'],
-                ['as', 'because'],
-                ['earnest', 'serious'],
-                ['earnestness', 'seriousness'],  # &&&
-                ['completely', 'ultimately'],
-                ['strong', 'firm'],
-                ['fairly', 'rather'],
-                ['apply', 'use'],
-                ['applies', 'uses'],
-                ['applied', 'used'],
-                ['applying', 'using'],
-                ['exclusive', 'special'],
-                ['sweeps', 'spreads'],
-                ['sweeping', 'spreading'],
-                ['conclusion', 'point'],
-                ['conclusions', 'points'],
-                ['factory', 'manufacture'],
-                ['absolutely', 'quite'],
-                ['genetical', 'genetic'],
-                ['option', 'opportunity'],
-                ['options', 'opportunities'],
-                ['remote', 'distant'],
-                ['specifically', 'specially'],
-                ['complex', 'complicated'],
-                ['habitual', 'everyday'],
-                ['easy', 'simple'],
-                ['contained', 'restrained'],
-                ['beautiful', 'wonderful'],
-                ['actual', 'real'],
-                #                ['existent', 'existence'],
-                ['career', 'carrier'],
-                ['production', 'product'],
-                ['drop', 'droplet'],
-                ['area', 'field'],
-                ['tutor', 'teacher'],
-                ['explanation', 'presentation'],
-                ['establishment', 'institution'],
-                ['mode', 'regime'],
-                ['oppose', 'disagree'],
-                ['increase', 'improve'],
-                ['remember', 'memorize'],
-                ['address', 'solve'],
-                ['disrupt', 'ruin'],
-                ['maintain', 'observe'],
-
-                ['job', 'place'],
-                ['jobs', 'places'],
-                ['operate', 'work'],
-                ['operates', 'works']
-            ]
-
-            self.spisok_insert = [
-                'it',
-                'he',
-                'she',
-                'I',
-                'we',
-                'you',
-                'they',
-                'its',
-                'his',
-                'her',
-                'my',
-                #                  'our',
-                'your',
-                'their',
-                'him',
-                'me',
-                'us',
-                'them',
-                #                  'this',
-                #                  'these',
-                'that',
-                'those',
-                'who',
-                'whom',
-                'which',
-                'ones',
-                'in',
-                'on',
-                'at',
-                'of',
-                'to',
-                'for',
-                'from',
-                'by',
-                'with',
-                'about',
-                'off',
-                'down',
-                'up',
-                'upon',
-                'within',
-                'above',
-                'below'
-            ]
-
-            self.spisok_replace = [
-                ['yet', 'already'],
-                ['universe', 'universal'],
-                ['helpful', 'helping'],
-                ['nearby', 'near'],
-                ['useful', 'good'],
-                ['beneficial', 'good'],
-                ['perfect', 'good'],
-                ['excellent', 'good'],
-                ['common', 'single'],
-                ['discipline', 'subject'],
-                ['disciplines', 'subjects'],
-                ['assignment', 'task'],
-                ['assignments', 'tasks'],
-                ['pile', 'mountain'],
-                ['piles', 'mountains'],
-                ['create', 'make'],
-                ['creates', 'makes'],
-                ['created', 'made'],
-                ['creating ', 'making'],
-                ['operated', 'worked'],
-                ['operating', 'working'],
-                ['assign', 'set'],
-                ['assigns', 'sets'],
-                ['assigned', 'set'],
-                ['assigning', 'setting'],
-                ['complete', 'do'],
-                ['completes', 'does'],
-                ['completed', 'did'],
-                ['completing', 'doing'],
-            ]
-
-            for pair in self.spisok:
-                self.dict_spisok['REPLACE_' + pair[1]] = pair[0] + ' -> ' + pair[1]
-                self.dict_spisok['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
-                self.all_error_names['REPLACE_' + pair[1]] = pair[0] + ' -> ' + pair[1]
-                self.all_error_names['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
-
-            for pair in self.spisok_replace:
-                self.dict_spisok_replace['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
-                self.all_error_names['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
-
-            for word in self.spisok_insert:
-                self.dict_spisok_insert['INSERT_' + word] = 'insert ' + word
-                self.all_error_names['INSERT_' + word] = 'insert ' + word
-
-            self.label_map = {label: i for i, label in enumerate(self.label_list)}
-            self.error_types = {self.label_map[label]: self.all_error_names[label] for label in self.label_list[1:]}
-
-        else:
-            self.label_list = label_list
-            # print(self.label_list)
-            self.error_types = {i + shift: error for i, error in enumerate(configs["error_types"])}
-            self.label_map = {label: i for i, label in enumerate(self.label_list)}
+            from label_list_with_sgpl import label_list
+        self.label_list = label_list
+        print(self.label_list)
+        sys.stdout.flush()
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
+        # self.error_types = {i + shift: error for i, error in enumerate(configs["error_types"])}
+        self.all_error_names = dict({
+            'REPLACE_a_an': "prep -> a/an",
+            "REPLACE_the": "prep -> the",
+            "INSERT_a_an": "insert prep a/an",
+            "INSERT_the": "insert prep the",
+            "DELETE_prep": "delete prep",
+            "REPLACE_inonatofby_in": "inonatofby -> in",
+            "REPLACE_inonatofby_on": "inonatofby -> on",
+            "REPLACE_inonatofby_at": "inonatofby -> at",
+            "REPLACE_inonatofby_of": "inonatofby -> of",
+            "REPLACE_inonatofby_by": "inonatofby -> by",
+            "REPLACE_that": "thatwhichwhowhom -> that",
+            "REPLACE_which": "thatwhichwhowhom -> which",
+            "REPLACE_who": "thatwhichwhowhom -> who",
+            "REPLACE_whom": "thatwhichwhowhom -> whom",
+            "REPLACE_inwithin_within": "inwithin -> within",
+            "REPLACE_inwithin_in": "inwithin -> in",
+            'REPLACE_toforoffrom_for': "toforoffrom -> for",
+            "REPLACE_toforoffrom_from": "toforoffrom -> from",
+            "REPLACE_toforoffrom_of": "toforoffrom -> of",
+            "REPLACE_toforoffrom_to": "toforoffrom -> to",
+            'REPLACE_plural_single': "plural -> single",
+            'REPLACE_single_plural': "single -> plural",
+            'REPLACE_plural_single_verb': "plural verb -> single",
+            'REPLACE_single_plural_verb': "single verb -> plural"
+        })
+        self.root_dir = root_dir
 
         with open(root_dir + '/noun&verb/noun.txt', 'r') as f:
             pairs = f.read().splitlines()
@@ -298,6 +125,175 @@ class ProcessOutput:
         self.ing_search = re.compile(r"\w+ing\b", re.IGNORECASE)
         self.s_search = re.compile(r"\w+s\b", re.IGNORECASE)
         self.ed_search = re.compile(r"\w+ed\b", re.IGNORECASE)
+
+        self.basic_tokenizer = BasicTokenizer(do_lower_case=False)
+
+        self.spisok = [
+            ['bad', 'bed'],
+            ['than', 'then'],
+            ['live', 'life'],
+            ['head', 'had'],
+            ['facility', 'appliance'],
+            ['among', 'between'],
+            ['when', 'while'],
+            ['only', 'just'],
+            ['interesting', 'interested'],
+            ['big', 'large'],
+            ['little', 'small'],
+            ['comfortable', 'convenient'],
+            ['there', 'where'],
+            ['will', 'would'],
+            ['weight', 'weigh'],
+            ['weights', 'weighs'],
+            ['differently', 'definitely'],
+            ['as', 'because'],
+            ['earnest', 'serious'],
+            ['earnestness', 'seriousness'],  # &&&
+            ['completely', 'ultimately'],
+            ['strong', 'firm'],
+            ['fairly', 'rather'],
+            ['apply', 'use'],
+            ['applies', 'uses'],
+            ['applied', 'used'],
+            ['applying', 'using'],
+            ['exclusive', 'special'],
+            ['sweeps', 'spreads'],
+            ['sweeping', 'spreading'],
+            ['conclusion', 'point'],
+            ['conclusions', 'points'],
+            ['factory', 'manufacture'],
+            ['absolutely', 'quite'],
+            ['genetical', 'genetic'],
+            ['option', 'opportunity'],
+            ['options', 'opportunities'],
+            ['remote', 'distant'],
+            ['specifically', 'specially'],
+            ['complex', 'complicated'],
+            ['habitual', 'everyday'],
+            ['easy', 'simple'],
+            ['contained', 'restrained'],
+            ['beautiful', 'wonderful'],
+            ['actual', 'real'],
+            ['existent', 'existence'],
+            ['career', 'carrier'],
+            ['production', 'product'],
+            ['drop', 'droplet'],
+            ['area', 'field'],
+            ['tutor', 'teacher'],
+            ['explanation', 'presentation'],
+            ['establishment', 'institution'],
+            ['mode', 'regime'],
+            ['oppose', 'disagree'],
+            ['increase', 'improve'],
+            ['remember', 'memorize'],
+            ['address', 'solve'],
+            ['disrupt', 'ruin'],
+            ['maintain', 'observe'],
+
+            ['job', 'place'],
+            ['jobs', 'places'],
+            ['operate', 'work'],
+            ['operates', 'works']
+        ]
+
+        self.spisok_insert = [
+            'it',
+            'he',
+            'she',
+            'I',
+            'we',
+            'you',
+            'they',
+            'its',
+            'his',
+            'her',
+            'my',
+            #                  'our',
+            'your',
+            'their',
+            'him',
+            'me',
+            'us',
+            'them',
+            #                  'this',
+            #                  'these',
+            'that',
+            'those',
+            'who',
+            'whom',
+            'which',
+            'ones',
+            'in',
+            'on',
+            'at',
+            'of',
+            'to',
+            'for',
+            'from',
+            'by',
+            'with',
+            'about',
+            'off',
+            'down',
+            'up',
+            'upon',
+            'within',
+            'above',
+            'below'
+        ]
+
+        self.spisok_replace = [
+            ['yet', 'already'],
+            ['universe', 'universal'],
+            ['helpful', 'helping'],
+            ['nearby', 'near'],
+            ['useful', 'good'],
+            ['beneficial', 'good'],
+            ['perfect', 'good'],
+            ['excellent', 'good'],
+            ['common', 'single'],
+            ['discipline', 'subject'],
+            ['disciplines', 'subjects'],
+            ['assignment', 'task'],
+            ['assignments', 'tasks'],
+            ['pile', 'mountain'],
+            ['piles', 'mountains'],
+            ['create', 'make'],
+            ['creates', 'makes'],
+            ['created', 'made'],
+            ['creating ', 'making'],
+            ['operated', 'worked'],
+            ['operating', 'working'],
+            ['assign', 'set'],
+            ['assigns', 'sets'],
+            ['assigned', 'set'],
+            ['assigning', 'setting'],
+            ['complete', 'do'],
+            ['completes', 'does'],
+            ['completed', 'did'],
+            ['completing', 'doing'],
+        ]
+
+        self.dict_spisok = {}
+        for pair in self.spisok:
+            self.dict_spisok['REPLACE_' + pair[1]] = pair[0] + ' -> ' + pair[1]
+            self.dict_spisok['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
+            self.all_error_names['REPLACE_' + pair[1]] = pair[0] + ' -> ' + pair[1]
+            self.all_error_names['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
+
+        self.dict_spisok_replace = {}
+        for pair in self.spisok_replace:
+            self.dict_spisok_replace['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
+            self.all_error_names['REPLACE_' + pair[0]] = pair[1] + ' -> ' + pair[0]
+
+        self.dict_spisok_insert = {}
+        for word in self.spisok_insert:
+            self.dict_spisok_insert['INSERT_' + word] = 'insert ' + word
+            self.all_error_names['INSERT_' + word] = 'insert ' + word
+
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
+        self.error_types = {self.label_map[label]: self.all_error_names[label] for label in self.label_list[1:]}
+        print(self.error_types)
 
     def print_results_in_file(self, file_name, tokens, preds, initial_text, correct_text):
         print("Tokens = ", tokens, file=file_name)
@@ -552,7 +548,7 @@ class ProcessOutput:
     def check_next_word(self, tokens, place, correct_text, word, word_final=''):
         while '#' in tokens[place + 1]:
             place += 1
-        # print(tokens[place + 1])
+        print(tokens[place + 1])
         if "'" in tokens[place + 1]:
             if re.search(word + tokens[place + 1], correct_text) is not None:
                 word_next = tokens[place + 1] + tokens[place + 2]
@@ -605,8 +601,7 @@ class ProcessOutput:
         return dicty, correct_text, word_full, correct_full
 
     def process_sentence_optimal(self, prediction, input_ids, nopad, text_data, probabilities, probabilities_o,
-                                 default_value, threshold=0.5, for_stand=False, root_dir='modules/articles/',
-                                 check_in_dict=True):
+                                 default_value, threshold=0.5, check_in_dict=True):
         tokens = self._tokenizer.convert_ids_to_tokens(input_ids[0, :nopad[0]])
         correct_text = text_data[0]
         preds = np.array(prediction[0][0])
@@ -784,6 +779,10 @@ class ProcessOutput:
                                 else:
                                     correction_dict.pop(tok_place)
                                     break
+                                if word.isupper():
+                                    word_correct = word_correct.upper()
+                                elif word.istitle():
+                                    word_correct = word_correct.title()
                                 if tokens[tok_place - 1] in ['a', 'A', 'an', 'An', 'AN']:
                                     correction_dict, correct_text, word_full, word_correct_full = \
                                         self.correct_replace(tokens[tok_place - 1] + word, word_correct, correct_text,
@@ -880,12 +879,60 @@ class ProcessOutput:
                                 self.correct_replace(prep + word, word_correct, correct_text, correction_dict,
                                                      positional_symbols, word_error_prob, tok_error_type,
                                                      tok_place, tokens, initial_position)
-                        elif tok_error_type == "existent -> existence":
+                        elif tok_error_type == 'then -> than':
                             correction_dict, word_correct_full, correct_text, word_full, word_correct = \
-                                self.replace_multiple([word.upper()], "existence",
-                                                      word, correction_dict, tok_place, word_error_prob,
-                                                      correct_text, tok_error_type, positional_symbols,
+                                self.replace_multiple(['THEN'], "than", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
+                        elif tok_error_type == 'than -> then':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['THAN'], "then", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'bad -> bed':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['BAD'], "bed", word, correction_dict, tok_place, word_error_prob,
+                                                      correct_text, tok_error_type, positional_symbols, word_correct,
+                                                      tokens, initial_position)
+
+                        elif tok_error_type == 'bed -> bad':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['BED'], "bad", word, correction_dict, tok_place, word_error_prob,
+                                                      correct_text, tok_error_type, positional_symbols, word_correct,
+                                                      tokens, initial_position)
+                        elif tok_error_type == 'live -> life':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['LIVE'], "life", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'life -> live':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['LIFE'], "live", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'head -> had':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['HEAD'], "had", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text,
+                                                      tok_error_type, positional_symbols, word_correct, tokens,
+                                                      initial_position)
+                        elif tok_error_type == 'had -> head':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['HAD'], "head", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        # elif tok_error_type == "existent -> existence":
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(["EXISTANT"], "existence",
+                        #                                             word, correction_dict, tok_place, word_error_prob,
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
+                        # elif tok_error_type in ["existence -> existent"]:
+                        #     correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                        #         self.replace_multiple(["EXISTENCE"], "existant",
+                        #                                             word, correction_dict, tok_place, word_error_prob,
+                        #                                             correct_text, tok_error_type, positional_symbols,
+                        #                               word_correct, tokens, initial_position)
                         elif (
                                 tok_error_type in self.dict_spisok.values() or tok_error_type in self.dict_spisok_replace.values()):
                             # print(tok_error_type)
@@ -904,12 +951,23 @@ class ProcessOutput:
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
+                        elif tok_error_type == 'career -> carrier':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['CAREER'], "carrier", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'carrier -> career':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['CARRIER'], "career", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
                         elif tok_error_type == 'quantity -> a lot of':
                             correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['MANY', 'MUCH'], "a lot of", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
                         elif tok_error_type == 'quantity -> many':
+
                             if 'lot' in word.lower():
                                 word = tokens[tok_place - 1] + ' ' + word + ' ' + tokens[tok_place + 1]
                                 correction_dict, word_correct_full, correct_text, word_full, word_correct = \
@@ -942,21 +1000,18 @@ class ProcessOutput:
                             inserted_char = inserted_l[inserted_ids]
                             inserted_l.pop(inserted_ids)
                             inserted_l = [elem.upper() for elem in inserted_l]
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
                             pos = 1
                             word_prev = ''
                             while '#' in tokens[tok_place - pos]:
-                                word_prev = tokens[tok_place - pos][2:] + word_prev
+                                word_prev += tokens[tok_place - pos][2:]
                                 pos += 1
-                            word_prev = tokens[tok_place - pos] + word_prev
-                            print(tokens, word_prev, text_data[0])
-                            word_prev_with_whitespace = re.search(rf'{word_prev}\s*', text_data[0])[0]
-                            word_with_prev = word_prev_with_whitespace + word
-                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
-                                self.replace_multiple(inserted_l, inserted_char, word_with_prev, correction_dict,
-                                                      tok_place,
-                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
-                                                      word_correct, tokens, initial_position)
-                            word_correct = word_correct[len(word_prev_with_whitespace):]
+                            word_prev += tokens[tok_place - pos]
+                            word_full = word_prev + ' ' + word_full
+                            word_correct_full = word_prev + ' ' + word_correct_full
                         elif tok_error_type == "insert more":
                             word_correct = self.upper_or_lower(word, tok_place, 'more')
                             correction_dict, correct_text, word_full, word_correct_full = \
@@ -1029,6 +1084,7 @@ class ProcessOutput:
                                 self.replace_multiple(['THIS'], "these", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
+
                         elif tok_error_type == 'thatthose -> that':
                             correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['THOSE'], "that", word, correction_dict, tok_place,
@@ -1037,6 +1093,16 @@ class ProcessOutput:
                         elif tok_error_type == 'thatthose -> those':
                             correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(['THAT'], "those", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'where -> there':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['WHERE'], "there", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'there -> where':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['THERE'], "where", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
                         elif tok_error_type == 'this -> it':
@@ -1130,6 +1196,16 @@ class ProcessOutput:
                             inserted_l = [elem.upper() for elem in inserted_l]
                             correction_dict, word_correct_full, correct_text, word_full, word_correct = \
                                 self.replace_multiple(inserted_l, inserted_char, word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'while -> when':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['WHILE'], "when", word, correction_dict, tok_place,
+                                                      word_error_prob, correct_text, tok_error_type, positional_symbols,
+                                                      word_correct, tokens, initial_position)
+                        elif tok_error_type == 'when -> while':
+                            correction_dict, word_correct_full, correct_text, word_full, word_correct = \
+                                self.replace_multiple(['WHEN'], "while", word, correction_dict, tok_place,
                                                       word_error_prob, correct_text, tok_error_type, positional_symbols,
                                                       word_correct, tokens, initial_position)
                         elif tok_error_type == 'quantity_pron -> some':
@@ -1301,7 +1377,16 @@ class ProcessOutput:
                     positional_symbols += len(word_count)
                     initial_position += len(word)
 
+        for word in corrected_words:
+            article = re.compile(rf"\b(A|a|An|an|AN)(?=(\s*){word})", re.IGNORECASE)
+            if re.search(article, correct_text) is not None:
+                art = self.check_a_an(self.basic_tokenizer.tokenize(word)[0].lower())
+                correct_text = article.sub(art.upper(), correct_text)
+                correct_text = article.sub(art.title(), correct_text)
+                correct_text = article.sub(art, correct_text)
+
         return correct_text, correction_dict, words_error, incorrect_words, corrected_words
+
 
 # elif tok_error_type in ["count_pron -> other", "count_pron -> others"]:
 #     inserted_ids = ["count_pron -> other", "count_pron -> others"].index(tok_error_type)

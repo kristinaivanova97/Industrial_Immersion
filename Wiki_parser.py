@@ -6,10 +6,15 @@ import numpy as np
 import pandas as pd
 import time
 import json
-from multiprocessing import Pool
+import csv
+import re
+import parmap
+# import multiprocessing
+# from multiprocessing import Pool
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
+# model = OrphoNet()
 
 def choose_texts():
     # цикл по всем папкам и добавление их данных в список
@@ -37,40 +42,47 @@ def choose_texts():
             shutil.copy(root + d + '/wiki_01', "different_texts_wiki/wiki_01_" + d)
 
 
-def process(params, i):
-    outputs = model.execute([params])
-    df = pd.DataFrame(columns=['article_uuid', 'proc_sentence', 'proc_len', 'corrected'])
-    if len(outputs) > 1 and outputs[0] == 'Incorrect':
-        df.loc[i, 'corrected'] = outputs[1]
-    return df
+def process(data, model):
+    for i, line in tqdm(enumerate(data['proc_sentence'].to_numpy())):
+        if line is not np.nan:
+            output = model.execute(line)
+            if len(output) > 1 and output[0] == 'Incorrect':
+
+                data.loc[i, 'corrected'] = output[1]
+                data.loc[i, 'error_types'] = str(output[3])
+                data.loc[i, 'probability'] = str(output[4])
+    return data
 
 
-def list_multiprocessing(param_lst,
-                         func,
-                         **kwargs):
-    workers = kwargs.pop('workers')
+def list_multiprocessing(data, model):
+    num_processes = 2
+    chunk_size = int(data.shape[0] / num_processes)
 
-    with Pool(workers) as p:
-        apply_lst = [([line, i], func, i, kwargs) for i, line in param_lst.iteritems() if line is not np.nan]
-        result = list(tqdm(p.imap(_apply_lst, apply_lst), total=len(apply_lst)))
+    chunks = [data.iloc[i:i + chunk_size] for i in range(0, data.shape[0], chunk_size)]
+    # pool = multiprocessing.Pool(processes=num_processes)
+    # multiprocessing.freeze_support()
+    # result = pool.map(process, chunks)
+    # pool.close()
+    result = parmap.map(process, chunks, model, pm_chunksize=chunk_size, pm_processes=num_processes, pm_pbar=True)
 
-    # lists do not need such sorting, but this can be useful later
-    result = sorted(result, key=lambda x: x[0])
-    return [_[1] for _ in result]
-
-
-def _apply_lst(args):
-
-    params, func, num, kwargs = args
-    return num, func(*params, **kwargs)
+    for i in tqdm(range(len(result))):
+        data.iloc[result[i].index] = result[i]
+    data = data.dropna(subset=['article_uuid', 'proc_sentence', 'corrected'], how='any', inplace=True)
+    return data
 
 
 def get_answers_in_wiki(model):
 
-    wikipedia = pd.read_csv("ruwiki_2018_09_25_test.csv", encoding='utf-8', sep=',')
-    wikipedia['corrected'] = np.nan
-    wikipedia['error_types'] = np.nan
-    wikipedia['probability'] = np.nan
+    f = open("ruwiki_full.csv", encoding='utf-8')
+    csv_reader = csv.reader(f)
+    with open("ruwiki_full" + '_answered_fl_doubled_sent_500k_2020_12_17' + '.csv', 'a+', newline='') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerow(['index', 'sentence', 'corrected', 'error_types', 'probability'])
+    # print(next(csv_reader))
+    # wikipedia = pd.read_csv("ruwiki_full.csv", encoding='utf-8', sep=',')
+    # wikipedia['corrected'] = np.nan
+    # wikipedia['error_types'] = np.nan
+    # wikipedia['probability'] = np.nan
     # df = list_multiprocessing(wikipedia['proc_sentence'],
     #                           process,
     #                           workers=5)
@@ -78,29 +90,53 @@ def get_answers_in_wiki(model):
 
     # outputs = [[i, model.execute(line)] for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy()))
     #            if line is not np.nan]
-
-    for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy()[:100])):
-        if line is not np.nan:
-            output = model.execute(line)
+    header = next(csv_reader)
+    i = -1
+    data = []
+    for line in tqdm(csv_reader):
+        if line[2] == line[2]:
+            i += 1
+            output = model.execute(line[2])
             if len(output) > 1 and output[0] == 'Incorrect':
-                print(line)
-                print(output)
-                wikipedia['corrected'].iloc[i] = output[1]
-                wikipedia['error_types'].iloc[i] = output[3]
-                wikipedia['probability'].iloc[i] = str(output[4])
+                data.append([line[0], line[2], output[1], str(output[3]), str(output[4])])
+            if i % 1000 == 0:
+                with open("ruwiki_full" + '_answered_fl_doubled_sent_500k_2020_12_17' + '.csv', 'a+', newline='') as csvFile:
+                    writer = csv.writer(csvFile)
+                    writer.writerows(data)
+                data = []
 
-    # for output in tqdm(outputs):
-    #     i, answer = output
-    #     if len(answer) > 1 and answer[0] == 'Incorrect':
-    #         wikipedia['corrected'].iloc[i] = answer[1]
-    wikipedia.dropna(subset=['article_uuid', 'proc_sentence', 'corrected'], how='any', inplace=True)
-    wikipedia.to_csv("ruwiki_2018_09_25" + '_answered_fl_doubled_sent_500k_201127_0' + '.csv', index=False)
+    # for i, line in tqdm(enumerate(wikipedia['proc_sentence'].to_numpy())):
+    #     if line is not np.nan:
+    #         output = model.execute(line)
+    #         if len(output) > 1 and output[0] == 'Incorrect':
+    #             # brace_open = re.compile(r'{')
+    #             # brace_close = re.compile(r'}')
+    #             # brace_open_escape = re.escape('{')
+    #             # brace_close_escape = re.escape('}')
+    #             # output[1] = output[1].replace('{', '\\{').replace('}', '\\}')
+    #             # correct = re.compile(rf'{output[1]}')
+    #
+    #             wikipedia.loc[i, 'corrected'] = output[1]
+    #             wikipedia.loc[i, 'error_types'] = str(output[3])
+    #             wikipedia.loc[i, 'probability'] = str(output[4])
+
+    # wikipedia.dropna(subset=['article_uuid', 'proc_sentence', 'corrected'], how='any', inplace=True)
+    # wikipedia.to_csv("ruwiki_full" + '_answered_fl_doubled_sent_500k_2020_12_17' + '.csv', index=False)
 
 
 def main(get_wiki=True, get_csv_fl_hardsoft_1=False):
     if get_wiki:
         model = OrphoNet()
         get_answers_in_wiki(model)
+
+        # *** parallel part ***
+        # wikipedia = pd.read_csv("ruwiki_full.csv", encoding='utf-8', sep=',')
+        # wikipedia['corrected'] = np.nan
+        # wikipedia['error_types'] = np.nan
+        # wikipedia['probability'] = np.nan
+        # wikipedia = list_multiprocessing(wikipedia, model)
+        # wikipedia.to_csv("ruwiki_full" + '_answered_fl_doubled_sent_500k_2020_12_17' + '.csv', index=False)
+        # *** end ***
     if get_csv_fl_hardsoft_1:
         start_time = time.time()
         models = []
@@ -140,4 +176,12 @@ def main(get_wiki=True, get_csv_fl_hardsoft_1=False):
 
 if __name__ == '__main__':
     # torch.multiprocessing.set_start_method('spawn')
+
+    # model = OrphoNet()
+    # wikipedia = pd.read_csv("ruwiki_full.csv", encoding='utf-8', sep=',')
+    # wikipedia['corrected'] = np.nan
+    # wikipedia['error_types'] = np.nan
+    # wikipedia['probability'] = np.nan
+    # wikipedia = list_multiprocessing(wikipedia, model)
+    # wikipedia.to_csv("ruwiki_full" + '_answered_fl_doubled_sent_500k_2020_12_17' + '.csv', index=False)
     main()

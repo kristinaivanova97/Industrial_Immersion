@@ -1,5 +1,5 @@
 from Class_rus import TestPreprocess, ProcessOutput
-from Model_lexi import TsyaModel
+from Model import TsyaModel
 import json
 from transformers import BertTokenizer
 
@@ -9,8 +9,8 @@ class OrphoNet:
     def __init__(self):
         with open("config_stand.json") as json_data_file:
             self.configs = json.load(json_data_file)
-        with open("test.json") as json_data_file:
-            tags = json.load(json_data_file)
+        # with open("test.json") as json_data_file:
+        #     tags = json.load(json_data_file)
         if self.configs["multilingual"]:
             tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
         else:
@@ -56,12 +56,14 @@ class OrphoNet:
 # text_data = "Остались считанные минуты"
 # text_data = "Решен только вопрос о том, что он получил документ, что его заявление по предоставлению убежища получен\
 # ФМС и будет рассмотрен в установленом законом порядке."
+# text_data = "Он садится в лодку, взяв корзину, к которой привязана верёвка, другой её конец привязан к камню."
 
 
-# model = OrphoNet()
-# text_data = "Others argue that there are no more important things than friends and relatives in existant of each man."
-# output = model.execute(text_data, 'Incorrect')
+model = OrphoNet()
+text_data = "Браслеты из кожи тюленя служили украшениями."
+output = model.execute(text_data, 'Incorrect')
+for out in output:
+    print(out)
+
 # # model.give_json(output[2], 'model_output.json')
-# for out in output:
-#     print(out)
 

@@ -31,9 +31,11 @@ def main(configs):
     print("Num of sequences = ", len(val_data_processor.input_ids))
     print("files with input ids, masks, segment ids and label ids are loaded succesfully")
 
-    if not configs['from_rubert']:
+    if (not configs['from_rubert']) and configs["multilingual"]:
         tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
+    elif not configs["multilingual"]:
+        tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=False)
     else:
         tokenizer = AutoTokenizer.from_pretrained(**configs['config_of_tokenizer'])
 

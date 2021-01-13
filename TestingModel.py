@@ -145,7 +145,7 @@ def main(path_file, configs):
     tsya_testing = configs["tsya_testing"]
     calculate_metrics_nn = configs["calculate_metrics_nn"]
     calculate_metrics_tsya = configs["calculate_metrics_tsya"]
-    default_value = ["default_value"]
+    default_value = configs["default_value"]
 
     if path_file:
         with open(path_file, 'r') as f:
@@ -188,26 +188,26 @@ def main(path_file, configs):
             #  'FL_hardsoft_2_schitanye', 'POW_hard_1', 'POW_hardsoft_1', 'POW_hardsoft_2',
             #  'POW_hardsoft_1_schitanye', 'POW_hardsoft_2_schitanye']
             for i, model_name in enumerate(list_of_models):
-                with open("config_stand.json", "r+") as jsonFile:
-                    data = json.load(jsonFile)
-                    data["chckp_file"] = chkpths[i]
-                    print(model_name)
-                    if i != 6:
-                        data["from_rubert"] = False
-                        if i > 3:
-                            data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
-                                                  "REPLACE_tysya", "REPLACE_tsya", "[##]"]
-                        else:
-                            data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
-                                                  "REPLACE_tysya", "REPLACE_tsya"]
-                    else:
-                        data["from_rubert"] = True
-                        data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
-                                              "REPLACE_tysya", "REPLACE_tsya"]
-
-                    jsonFile.seek(0)  # rewind
-                    json.dump(data, jsonFile)
-                    jsonFile.truncate()
+                # with open("config_stand.json", "r+") as jsonFile:
+                #     data = json.load(jsonFile)
+                #     data["chckp_file"] = chkpths[i]
+                #     print(model_name)
+                #     if i != 6:
+                #         data["from_rubert"] = False
+                #         if i > 3:
+                #             data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                #                                   "REPLACE_tysya", "REPLACE_tsya", "[##]"]
+                #         else:
+                #             data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                #                                   "REPLACE_tysya", "REPLACE_tsya"]
+                #     else:
+                #         data["from_rubert"] = True
+                #         data['label_list'] = ["[PAD]", "[SEP]", "[CLS]", "O", "REPLACE_nn", "REPLACE_n",
+                #                               "REPLACE_tysya", "REPLACE_tsya"]
+                #
+                #     jsonFile.seek(0)  # rewind
+                #     json.dump(data, jsonFile)
+                #     jsonFile.truncate()
                 net = OrphoNet()
                 test(writer, model_name, net, suffixes[i], nn_testing, tsya_testing, calculate_metrics_nn,
                      calculate_metrics_tsya, default_value, test_nn_dir="./test_nn/")
@@ -224,3 +224,15 @@ if __name__ == '__main__':
         configs = json.load(json_data_file)
 
     main(path_to_file, configs=configs)
+
+# "fl_hardsoft_correct_1set", "fl_hardsoft_correct_2set",
+#                     "fl_hardsoft_correct_2set_70_30", "fl_hardsoft_correct_2set_prob_0.5",
+# 					"fl_hardsoft_correct__doubled_sent_2set", "fl_hardsoft_correct_doubled_sent_2set_maintain_pairs_168k",
+# 					"fl_hardsoft_correct_2set_retrained_2222_with_mistakes",
+# 					"fl_hardsoft_correct_2set_retrained_3333_with_mistakes",
+# 					"fl_hardsoft_correct_2set_retrained_5252_with_mistakes",
+# 					"fl_hardsoft_correct_2set_retrained_3333_with_mistakes_prob_0.5",
+# 					"fl_hardsoft_correct_2set_retrained_3332_with_mistakes_true",
+# 					"pow_hardsoft_correct_1set", "pow_hardsoft_correct_2set",
+# 					"fl_hardsoft_correct_universal_magazines_dp",
+# 					"pow_hardsoft_correct_magazines_dp"

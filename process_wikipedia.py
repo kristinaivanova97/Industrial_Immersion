@@ -151,7 +151,7 @@ def _apply_lst(args):
 
 wiki_files = []
 
-for filename in glob.iglob('different_texts_enwiki_small/*', recursive=True):
+for filename in glob.iglob('text/*/*', recursive=True):
     wiki_files.append(filename)
     
 # plain list of stop words
@@ -164,4 +164,4 @@ frame = list_multiprocessing(wiki_files, process_wiki_files, workers=4)
 frame = pd.concat(frame).reset_index(drop=True)
 frame.article_uuid = frame.article_uuid.astype(str)
 df_new = frame.dropna(subset=['article_uuid', 'proc_sentence'], how='all')
-df_new.to_csv('./enwiki_small.csv')
+df_new.to_csv('./ruwiki_full.csv')
